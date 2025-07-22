@@ -4,10 +4,11 @@ import cv2
 import numpy as np
 import time
 from playsound import playsound
+import platform
 
 class OBSVirtualCamSource:
     def __init__(self):
-        self.cap = cv2.VideoCapture(1)
+        self.cap = cv2.VideoCapture(0)
         self.width = 480
         self.height = 320
 
@@ -47,10 +48,14 @@ time.sleep(0.2)
 keyboard = Controller()
 
 def restart_game():
-    keyboard.press(Key.cmd)
+    if platform.system() == 'Darwin':  # macOS
+        key = Key.cmd
+    else:  # Assume Linux/Windows
+        key = Key.ctrl
+    keyboard.press(key)
     keyboard.press('r')
     time.sleep(0.05)
-    keyboard.release(Key.cmd)
+    keyboard.release(key)
     keyboard.release('r')
 
 def fast_forward(arg: bool):
@@ -184,6 +189,14 @@ for i in range(5):
     time.sleep(1)
 
 attempt_count = 1
+non_shiny_color = ''
+taboo_colors = []
+if platform.system() == 'Darwin':
+    taboo_colors = ['#F8FFFF', '#F0EEF8']
+    non_shiny_color = '#D13B4C'
+else:
+    taboo_colors = []
+    non_shiny_color = '#D23B4C'
 
 ret_color = 'starting_val'
 while True:
@@ -197,9 +210,9 @@ while True:
     time.sleep(0.8)
     ret_color = handle_screen_analysis()
 
-    if ret_color =='#F8FFFF' or ret_color == '#F0EEF8':
+    if ret_color in taboo_colors:
         print('Virtual camera is out of sync, catching back up...')
-    elif ret_color != '#D13B4C':
+    elif ret_color != non_shiny_color:
         print(f'found after {attempt_count} attempts with ret_color {ret_color}')
         playsound('item_found_sfx.mp3')
         break;
