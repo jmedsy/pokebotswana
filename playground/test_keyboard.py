@@ -29,19 +29,21 @@ cv2.waitKey(10)
 time.sleep(0.2)
 
 def send_key_to_all_players(key):
-    num_players = 4  # Update if you add more players
-    for i in range(1, num_players + 1):
-        player_title = f"Player {i}"
+    num_rows = 3
+    num_cols = 4
+    for col in range(1, num_cols + 1):
+        player_title = f"Player {col}"
         result = subprocess.run(['xdotool', 'search', '--name', player_title], capture_output=True, text=True)
         window_ids = result.stdout.strip().split('\n')
-        for wid in window_ids:
-            if wid:
+        for row in range(num_rows):
+            if len(window_ids) > row and window_ids[row]:
+                wid = window_ids[row]
                 subprocess.run(['xdotool', 'windowactivate', '--sync', wid])
                 time.sleep(0.1)
                 subprocess.run(['xdotool', 'keydown', key])
                 time.sleep(0.05)
                 subprocess.run(['xdotool', 'keyup', key])
-                break
+
 
 def send_ctrl_r_to_all_mgba():
     for cmd in [
@@ -147,68 +149,74 @@ def handle_screen_analysis():
     frame = VC.read_frame()
     zoom_displays = []
     spots = []
-    num_spots = 4  # Can be increased for more spots in the future
-    for i in range(num_spots):
-        x = inspect_x + i * 480
-        y = inspect_y
-        if x < frame.shape[1] and y < frame.shape[0]:
-            bgr = frame[y, x].copy()
-            hex_color = bgr_to_hex(bgr).upper()
-            spots.append({'x': x, 'y': y, 'bgr': bgr, 'hex': hex_color})
+    num_rows = 3
+    num_cols = 4
+    y_offset_correction = 2  # Tune this value as needed
+    for row in range(num_rows):
+        for col in range(num_cols):
+            x = inspect_x + col * 480
+            y = inspect_y + row * 320 - y_offset_correction
+            if x < frame.shape[1] and y < frame.shape[0]:
+                bgr = frame[y, x].copy()
+                hex_color = bgr_to_hex(bgr).upper()
+                spots.append({'x': x, 'y': y, 'bgr': bgr, 'hex': hex_color})
 
-            # Draw crosshair on full frame
-            for dx in range(-line_len, line_len + 1):
-                if dx == 0: continue
-                xx = x + dx
-                if 0 <= xx < frame.shape[1]:
-                    frame[y, xx] = crosshair_color
-            for dy in range(-line_len, line_len + 1):
-                if dy == 0: continue
-                yy = y + dy
-                if 0 <= yy < frame.shape[0]:
-                    frame[yy, x] = crosshair_color
+                # Draw crosshair on full frame
+                for dx in range(-line_len, line_len + 1):
+                    if dx == 0: continue
+                    xx = x + dx
+                    if 0 <= xx < frame.shape[1]:
+                        frame[y, xx] = crosshair_color
+                for dy in range(-line_len, line_len + 1):
+                    if dy == 0: continue
+                    yy = y + dy
+                    if 0 <= yy < frame.shape[0]:
+                        frame[yy, x] = crosshair_color
 
-            # Zoom view for this spot
-            x0, x1 = max(x - zoom_size, 0), min(x + zoom_size + 1, frame.shape[1])
-            y0, y1 = max(y - zoom_size, 0), min(y + zoom_size + 1, frame.shape[0])
-            zoom_region = frame[y0:y1, x0:x1]
-            zoom_display = cv2.resize(zoom_region, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_NEAREST)
+                # Zoom view for this spot
+                x0, x1 = max(x - zoom_size, 0), min(x + zoom_size + 1, frame.shape[1])
+                y0, y1 = max(y - zoom_size, 0), min(y + zoom_size + 1, frame.shape[0])
+                zoom_region = frame[y0:y1, x0:x1]
+                zoom_display = cv2.resize(zoom_region, (0, 0), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_NEAREST)
 
-            # Crosshair in zoom view (no center dot)
-            center = (zoom_display.shape[1] // 2, zoom_display.shape[0] // 2)
-            for dx in range(-line_len, line_len + 1):
-                if dx == 0: continue
-                xx = center[0] + dx
-                if 0 <= xx < zoom_display.shape[1]:
-                    zoom_display[center[1], xx] = crosshair_color
-            for dy in range(-line_len, line_len + 1):
-                if dy == 0: continue
-                yy = center[1] + dy
-                if 0 <= yy < zoom_display.shape[0]:
-                    zoom_display[yy, center[0]] = crosshair_color
+                # Crosshair in zoom view (no center dot)
+                center = (zoom_display.shape[1] // 2, zoom_display.shape[0] // 2)
+                for dx in range(-line_len, line_len + 1):
+                    if dx == 0: continue
+                    xx = center[0] + dx
+                    if 0 <= xx < zoom_display.shape[1]:
+                        zoom_display[center[1], xx] = crosshair_color
+                for dy in range(-line_len, line_len + 1):
+                    if dy == 0: continue
+                    yy = center[1] + dy
+                    if 0 <= yy < zoom_display.shape[0]:
+                        zoom_display[yy, center[0]] = crosshair_color
 
-            # Overlay with hex + swatch
-            pip_h, pip_w = zoom_display.shape[:2]
-            overlay_height = 28
-            overlay = np.zeros((overlay_height, pip_w, 3), dtype=np.uint8)
-            swatch_width = 40
-            overlay[:, :swatch_width] = bgr
-            text_x = swatch_width + 10
-            text_y = 20
-            cv2.putText(overlay, hex_color, (text_x, text_y), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                # Overlay with hex + swatch
+                pip_h, pip_w = zoom_display.shape[:2]
+                overlay_height = 28
+                overlay = np.zeros((overlay_height, pip_w, 3), dtype=np.uint8)
+                swatch_width = 40
+                overlay[:, :swatch_width] = bgr
+                text_x = swatch_width + 10
+                text_y = 20
+                cv2.putText(overlay, hex_color, (text_x, text_y), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
-            # Stack zoom and overlay for this spot
-            pip_combined = np.vstack((zoom_display, overlay))
-            zoom_displays.append(pip_combined)
+                # Stack zoom and overlay for this spot
+                pip_combined = np.vstack((zoom_display, overlay))
+                zoom_displays.append({'pip': pip_combined, 'row': row, 'col': col})
 
-    # Place each PIP overlay above its corresponding inspect spot
+    # Place each PIP overlay above its corresponding player in the grid
     if zoom_displays:
-        pip_h, pip_w = zoom_displays[0].shape[:2]
-        for i, pip_combined in enumerate(zoom_displays):
-            x_offset = i * 480
-            # Ensure we don't go out of frame bounds
-            if x_offset + pip_w <= frame.shape[1] and pip_h <= frame.shape[0]:
-                frame[0:pip_h, x_offset:x_offset+pip_w] = pip_combined
+        pip_h, pip_w = zoom_displays[0]['pip'].shape[:2]
+        for item in zoom_displays:
+            row = item['row']
+            col = item['col']
+            x_offset = col * 480
+            y_offset = row * pip_h
+            pip_combined = item['pip']
+            if x_offset + pip_w <= frame.shape[1] and y_offset + pip_h <= frame.shape[0]:
+                frame[y_offset:y_offset+pip_h, x_offset:x_offset+pip_w] = pip_combined
 
     cv2.imshow("OBS Virtual Cam Preview", frame)
     cv2.waitKey(1)
@@ -254,26 +262,24 @@ def prime_all_windows_with_x():
                 subprocess.run(['xdotool', 'key', 'x'])
                 break  # Only focus the first matching window
 
-while True:
-    print(f'Attempt count: {attempt_count}', end='\r')
-    restart_game()
-    # prime_all_windows_with_x()
-    # focus_player_1()
-    proceed_through_intro()
-    step_foward()
-    pick_up_pokeball()
-    decline_naming()
-    open_pokemon_summary()
-    time.sleep(0.8)
-    ret_colors = handle_screen_analysis()
+if __name__ == "__main__":
+    attempt_count = 1
+    ret_colors = ['starting_val']
+    while True:
+        print(f'Attempt count: {attempt_count}', end='\r')
+        restart_game()
+        focus_player_1()
+        proceed_through_intro()
+        step_foward()
+        pick_up_pokeball()
+        decline_naming()
+        open_pokemon_summary()
+        time.sleep(0.8)
+        ret_colors = handle_screen_analysis()
 
-    if SHINY_HEX in ret_colors:
-        print(f'found after {attempt_count} attempts with ret_color {ret_color}')
-        playsound('playground/item_found_sfx.mp3')
-        break;
+        if SHINY_HEX in ret_colors:
+            print(f'found after {attempt_count} attempts with ret_color(s) {ret_colors}')
+            playsound('playground/item_found_sfx.mp3')
+            break
 
-    attempt_count += 4
-
-while True:
-    i = i + 1
-    i = i - 1
+        attempt_count += 4
