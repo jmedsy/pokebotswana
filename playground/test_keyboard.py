@@ -1,83 +1,80 @@
-from pynput.keyboard import Controller, Key
 import time
 import cv2
 import numpy as np
 import time
 from playsound import playsound
 import platform
+from backend.logic.virtual_camera import VC, bgr_to_hex
+from dotenv import load_dotenv
+import os
+import subprocess
 
-class OBSVirtualCamSource:
-    def __init__(self):
-        self.cap = cv2.VideoCapture(0)
-        self.width = 480
-        self.height = 320
-
-    def read_frame(self):
-        ret, frame = self.cap.read()
-        if not ret:
-            return None
-        # return cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
-        return frame
-
-    def release(self):
-        self.cap.release()
-
-def bgr_to_hex(bgr):
-    return '#{:02x}{:02x}{:02x}'.format(*bgr[::-1])
+load_dotenv()
+SHINY_HEX = os.getenv('SHINY_HEX')
 
 # --- Config ---
-inspect_x, inspect_y = 127, 132
+inspect_x, inspect_y = 211, 80
 zoom_size = 7
 scale_factor = 8
 crosshair_color = (0, 255, 0)  # neon green
 line_len = 5
 font = cv2.FONT_HERSHEY_SIMPLEX
 
-source = OBSVirtualCamSource()
-
 # Warm-up
-for _ in range(5):
-    source.read_frame()
-    time.sleep(0.05)
+VC.warm_up()
 
-frame = source.read_frame()
-cv2.imshow("OBS Virtual Cam Preview", frame)
-cv2.waitKey(1)
+frame = VC.read_frame()
+cv2.imshow('OBS Virtual Cam Preview', frame)
+cv2.waitKey(10)
 time.sleep(0.2)
 
-keyboard = Controller()
+def send_key_to_all_mgba(key, action='key'):
+    subprocess.run([
+        'xdotool', 'search', '--name', 'mGBA', action, '--window', '%@', key
+    ])
+
+def send_ctrl_r_to_all_mgba():
+    for cmd in [
+        ['xdotool', 'search', '--name', 'mGBA', 'keydown', '--window', '%@', 'ctrl'],
+        ['xdotool', 'search', '--name', 'mGBA', 'key', '--window', '%@', 'r'],
+        ['xdotool', 'search', '--name', 'mGBA', 'keyup', '--window', '%@', 'ctrl'],
+    ]:
+        print("Running:", " ".join(cmd))
+        subprocess.run(cmd)
+
+def send_p_to_window(window_title_substring):
+    # Find all windows matching the substring
+    result = subprocess.run(['xdotool', 'search', '--name', window_title_substring], capture_output=True, text=True)
+    window_ids = result.stdout.strip().split('\n')
+    for wid in window_ids:
+        if wid:
+            subprocess.run(['xdotool', 'windowactivate', '--sync', wid])
+            subprocess.run(['xdotool', 'key', 'p'])
 
 def restart_game():
-    if platform.system() == 'Darwin':  # macOS
-        key = Key.cmd
-    else:  # Assume Linux/Windows
-        key = Key.ctrl
-    keyboard.press(key)
-    keyboard.press('r')
-    time.sleep(0.05)
-    keyboard.release(key)
-    keyboard.release('r')
+    send_p_to_window('Player 1')
 
 def fast_forward(arg: bool):
-    if arg == True:
-        keyboard.press(Key.tab)
+    # Tab key down/up
+    if arg:
+        send_key_to_all_mgba('Tab', action='keydown')
     else:
-        keyboard.release(Key.tab)
+        send_key_to_all_mgba('Tab', action='keyup')
+    time.sleep(0.05)
 
 def btn_a():
-    keyboard.press('x')
+    send_key_to_all_mgba('x')
     time.sleep(0.05)
-    keyboard.release('x')
 
 def btn_down():
-    keyboard.press(Key.down)
+    send_key_to_all_mgba('Down')
     time.sleep(0.05)
-    keyboard.release(Key.down)
 
 def btn_start():
-    keyboard.press(Key.enter)
+    send_key_to_all_mgba('Return', action='keydown')
     time.sleep(0.05)
-    keyboard.release(Key.enter)
+    send_key_to_all_mgba('Return', action='keyup')
+    time.sleep(0.05)
 
 def proceed_through_intro():
     for i in range(4):
@@ -104,15 +101,9 @@ def open_pokemon_summary():
     time.sleep(0.1)
     btn_a()
     time.sleep(0.1)
-    btn_a()
-    time.sleep(0.1)
 
 def handle_screen_analysis():
-    # print('here 1')
-    frame = source.read_frame()
-    # if frame is None:
-    #     print("No frame received.")
-    #     continue
+    frame = VC.read_frame()
 
     bgr = frame[inspect_y, inspect_x].copy()
     hex_color = bgr_to_hex(bgr).upper()
@@ -129,7 +120,6 @@ def handle_screen_analysis():
         if 0 <= y < frame.shape[0]:
             frame[y, inspect_x] = crosshair_color
 
-    # print('here 2')
     # Zoom view
     x0, x1 = max(inspect_x - zoom_size, 0), min(inspect_x + zoom_size + 1, frame.shape[1])
     y0, y1 = max(inspect_y - zoom_size, 0), min(inspect_y + zoom_size + 1, frame.shape[0])
@@ -149,7 +139,6 @@ def handle_screen_analysis():
         if 0 <= y < zoom_display.shape[0]:
             zoom_display[y, center[0]] = crosshair_color
 
-    # print('here 3')
     # Overlay with hex + swatch
     pip_h, pip_w = zoom_display.shape[:2]
     overlay_height = 28
@@ -163,23 +152,15 @@ def handle_screen_analysis():
     text_x = swatch_width + 10
     text_y = 20
     cv2.putText(overlay, hex_color, (text_x, text_y), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    # print('here 4')
+
     # Stack PIP
     pip_combined = np.vstack((zoom_display, overlay))
     h, w = pip_combined.shape[:2]
     frame[0:h, 0:w] = pip_combined
-    # print('here 5')
-
-    # print(f"Pixel ({inspect_x},{inspect_y}): BGR={bgr.tolist()}  HEX={hex_color}", end='\r')
-
-    # print('here 6')
 
     cv2.imshow("OBS Virtual Cam Preview", frame)
     cv2.waitKey(1)
-    # if cv2.waitKey(1) & 0xFF == ord('q'):
-    #     break
 
-    # print('here 7')
     return hex_color
 
 i = 5
@@ -192,7 +173,7 @@ attempt_count = 1
 non_shiny_color = ''
 taboo_colors = []
 if platform.system() == 'Darwin':
-    taboo_colors = ['#F8FFFF', '#F0EEF8']
+    taboo_colors = ['#F8FFFF', '#F0EEF8', '#F0EFF6']
     non_shiny_color = '#D13B4C'
 else:
     taboo_colors = []
@@ -200,7 +181,7 @@ else:
 
 ret_color = 'starting_val'
 while True:
-    print(f"Attempt count: {attempt_count}", end='\r')
+    print(f'Attempt count: {attempt_count}', end='\r')
     fast_forward(True)
     restart_game()
     proceed_through_intro()
@@ -210,11 +191,9 @@ while True:
     time.sleep(0.8)
     ret_color = handle_screen_analysis()
 
-    if ret_color in taboo_colors:
-        print('Virtual camera is out of sync, catching back up...')
-    elif ret_color != non_shiny_color:
+    if ret_color == SHINY_HEX:
         print(f'found after {attempt_count} attempts with ret_color {ret_color}')
-        playsound('item_found_sfx.mp3')
+        playsound('playground/item_found_sfx.mp3')
         break;
 
     attempt_count += 1
