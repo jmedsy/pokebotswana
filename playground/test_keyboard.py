@@ -8,6 +8,7 @@ from backend.logic.virtual_camera import VC, bgr_to_hex
 from dotenv import load_dotenv
 import os
 import subprocess
+import threading
 
 load_dotenv()
 SHINY_HEX = os.getenv('SHINY_HEX')
@@ -27,6 +28,20 @@ frame = VC.read_frame()
 cv2.imshow('OBS Virtual Cam Preview', frame)
 cv2.waitKey(10)
 time.sleep(0.2)
+
+latest_frame = None
+frame_lock = threading.Lock()
+
+def frame_grabber():
+    global latest_frame
+    while True:
+        frame = VC.read_frame()
+        with frame_lock:
+            latest_frame = frame
+
+def get_latest_frame():
+    with frame_lock:
+        return latest_frame.copy() if latest_frame is not None else None
 
 def send_key_to_all_players(key):
     num_rows = 3
@@ -111,7 +126,7 @@ def btn_start():
 
 def proceed_through_intro():
     i = 1
-    for i in range(7):
+    for i in range(4):
         print(i)
         i = i + 1
         time.sleep(0.2)
@@ -145,8 +160,10 @@ def open_pokemon_summary():
     btn_a()
     time.sleep(0.5)
 
-def handle_screen_analysis():
-    frame = VC.read_frame()
+def handle_screen_analysis(display=True):
+    frame = get_latest_frame()
+    if frame is None:
+        return []
     zoom_displays = []
     spots = []
     num_rows = 3
@@ -207,7 +224,7 @@ def handle_screen_analysis():
                 zoom_displays.append({'pip': pip_combined, 'row': row, 'col': col})
 
     # Place each PIP overlay above its corresponding player in the grid
-    if zoom_displays:
+    if display and zoom_displays:
         pip_h, pip_w = zoom_displays[0]['pip'].shape[:2]
         for item in zoom_displays:
             row = item['row']
@@ -217,9 +234,8 @@ def handle_screen_analysis():
             pip_combined = item['pip']
             if x_offset + pip_w <= frame.shape[1] and y_offset + pip_h <= frame.shape[0]:
                 frame[y_offset:y_offset+pip_h, x_offset:x_offset+pip_w] = pip_combined
-
-    cv2.imshow("OBS Virtual Cam Preview", frame)
-    cv2.waitKey(1)
+        cv2.imshow("OBS Virtual Cam Preview", frame)
+        cv2.waitKey(1)
 
     # Return all hex colors for further logic
     return [spot['hex'] for spot in spots]
@@ -262,7 +278,7 @@ def prime_all_windows_with_x():
                 subprocess.run(['xdotool', 'key', 'x'])
                 break  # Only focus the first matching window
 
-if __name__ == "__main__":
+def automation_loop():
     attempt_count = 1
     ret_colors = ['starting_val']
     while True:
@@ -270,12 +286,12 @@ if __name__ == "__main__":
         restart_game()
         focus_player_1()
         proceed_through_intro()
-        step_foward()
         pick_up_pokeball()
         decline_naming()
         open_pokemon_summary()
         time.sleep(0.8)
-        ret_colors = handle_screen_analysis()
+        # Only analyze colors, do not update the OpenCV window here
+        ret_colors = handle_screen_analysis(display=False)
 
         if SHINY_HEX in ret_colors:
             print(f'found after {attempt_count} attempts with ret_color(s) {ret_colors}')
@@ -283,3 +299,17 @@ if __name__ == "__main__":
             break
 
         attempt_count += 4
+
+def live_preview():
+    while True:
+        handle_screen_analysis(display=True)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        time.sleep(1/60)
+
+if __name__ == "__main__":
+    grabber_thread = threading.Thread(target=frame_grabber, daemon=True)
+    grabber_thread.start()
+    automation_thread = threading.Thread(target=automation_loop, daemon=True)
+    automation_thread.start()
+    live_preview()  # This runs in the main thread
