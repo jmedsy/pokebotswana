@@ -1,0 +1,9 @@
+
+# Google Drive API credentials
+credentials.json
+token.pickle
+
+# Directories managed by Google Drive
+roms/
+saves/
+mgba/
