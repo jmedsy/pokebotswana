@@ -21,7 +21,7 @@ pokebotswana/
 │   └── server/                
 │   │   └── socket_server.lua  # Manages mGBA I/O, actually run by mGBA
 └── tools/
-    └── save_manager/          # Save file management utilities (optional)
+    └── save_manager/          # Save file management utilities (ignore, personal use)
 ```
 
 ## Quick Start
