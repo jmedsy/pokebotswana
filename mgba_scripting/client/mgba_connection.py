@@ -1,9 +1,11 @@
 import socket
 import time
+import threading
+import msvcrt
 from typing import Optional, Callable
 from key_event import KeyEvent
 from key_event_type import KeyEventType
-from key_type import KeyType
+from key_type import KeyType, KEY_TYPES
 from key_state import KeyState
 
 class MGBAConnection:
@@ -12,6 +14,8 @@ class MGBAConnection:
     _socket: Optional[socket.socket] = None
     _connected: bool
     _on_message: Optional[Callable] = None
+    _ping_thread: Optional[threading.Thread] = None
+    _stop_ping: bool = False
 
     def __init__(self, host="localhost", port=8888):
         self._host = host
@@ -20,6 +24,8 @@ class MGBAConnection:
         self._connected = False
         self._on_message = None
         self._key_state = KeyState()
+        self._ping_thread = None
+        self._stop_ping = False
 
     def connect(self) -> bool:
         """Connect to the MGBA server (see socket_server.lua)"""
@@ -36,11 +42,31 @@ class MGBAConnection:
 
     def disconnect(self):
         """Disconnect from mGBA"""
+        self._stop_ping = True
+        if self._ping_thread and self._ping_thread.is_alive():
+            self._ping_thread.join(timeout=1.0)
+        
         if self._socket:
             self._socket.close()
             self._socket = None
         self._connected = False
         print("Disconnected from MGBA")
+
+    def ping(self):
+        """Send a ping to keep the connection alive"""
+        if self._connected and self._socket:
+            try:
+                self._socket.send("ping\n".encode())
+            except Exception as e:
+                print(f"Ping failed: {e}")
+                self._connected = False
+
+    def _ping_loop(self):
+        """Background thread to send periodic pings"""
+        while self._connected and not self._stop_ping:
+            time.sleep(2.0)  # Ping every 2 seconds
+            if not self._stop_ping:
+                self.ping()
 
     def send(self, message: str) -> bool:
         """Send a message to mGBA"""
@@ -57,24 +83,44 @@ class MGBAConnection:
             return False
 
     def listen(self, callback: Optional[Callable]):
-        """Listen for messages from mGBA"""
+        """Listen for messages from mGBA with ping and escape key handling"""
         if not self._connected or not self._socket:
             print("Not connected to mGBA")
             return
 
         self._on_message = callback
+        
+        # Start ping thread
+        self._ping_thread = threading.Thread(target=self._ping_loop, daemon=True)
+        self._ping_thread.start()
 
+        print("Connected! Press ESC to disconnect.")
+        
         try:
             while self._connected:
-                data = self._socket.recv(1024).decode()
-                if data:
-                    if self._on_message:
-                        self._on_message(data.strip())
-                    else:
-                        print(f"Received: {data.strip()}")
-        except Exception as e:
-            print(f"Listen failed: {e}")
-            self._connected = False
+                # Check for escape key
+                if msvcrt.kbhit():
+                    key = msvcrt.getch()
+                    if key == b'\x1b':  # ESC key
+                        print("ESC pressed - disconnecting...")
+                        break
+                
+                # Try to receive data with a short timeout
+                try:
+                    self._socket.settimeout(0.1)  # 100ms timeout
+                    data = self._socket.recv(1024).decode()
+                    if data:
+                        if self._on_message:
+                            self._on_message(data.strip())
+                        else:
+                            print(f"Received: {data.strip()}")
+                except socket.timeout:
+                    # Timeout is expected, continue
+                    pass
+                except Exception as e:
+                    print(f"Listen failed: {e}")
+                    self._connected = False
+                    break
         finally:
             self.disconnect()
 
@@ -83,16 +129,16 @@ class MGBAConnection:
         match key_event.event_type:
             case KeyEventType.PUSH:
                 self._key_state.set_key(key_event.key_type, True)
-                self.send(self._key_state.serialize())
+                self.send(self._key_state.serialize_bitmask())
                 time.sleep(key_event.push_time)
                 self._key_state.set_key(key_event.key_type, False)
-                self.send(self._key_state.serialize())
+                self.send(self._key_state.serialize_bitmask())
             case KeyEventType.HOLD:
                 self._key_state.set_key(key_event.key_type, True)
-                self.send(self._key_state.serialize())
+                self.send(self._key_state.serialize_bitmask())
             case KeyEventType.RELEASE:
                 self._key_state.set_key(key_event.key_type, False)
-                self.send(self._key_state.serialize())
+                self.send(self._key_state.serialize_bitmask())
 
     def __enter__(self):
         """Context manager entry"""
@@ -108,6 +154,12 @@ if __name__ == "__main__":
         print(f"Key state: {data}")
 
     with MGBAConnection('localhost', 8888) as conn:
-        conn.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        # conn.send("Start")
+
+        for key in KEY_TYPES:
+            print(f"Pressing {key}")
+            conn.execute_event(KeyEvent(KeyEventType.HOLD, key))
+            time.sleep(1)
+            conn.execute_event(KeyEvent(KeyEventType.RELEASE, key))
+            time.sleep(1)
+        
         conn.listen(callback=handle_keystate)

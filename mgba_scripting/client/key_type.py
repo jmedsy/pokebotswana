@@ -3,24 +3,25 @@ from enum import Enum, auto
 class KeyType(Enum):
     A = auto()
     B = auto()
-    L = auto()
-    R = auto()
-    START = auto()
     SELECT = auto()
+    START = auto()
+    RIGHT = auto()
+    LEFT = auto()
     UP = auto()
     DOWN = auto()
-    LEFT = auto()
-    RIGHT = auto()
+    R = auto()
+    L = auto()
 
+"""Ensure order of keys matches that specified in server code"""
 KEY_TYPES = [
     KeyType.A,
     KeyType.B,
-    KeyType.L,
-    KeyType.R,
-    KeyType.START,
     KeyType.SELECT,
+    KeyType.START,
+    KeyType.RIGHT,
+    KeyType.LEFT,
     KeyType.UP,
     KeyType.DOWN,
-    KeyType.LEFT,
-    KeyType.RIGHT
+    KeyType.R,
+    KeyType.L
 ]
