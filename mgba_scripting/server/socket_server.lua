@@ -7,6 +7,11 @@
 	Basic host/client communication (see functions ST_*) is based loosely on mGBA test script(s) from official repo.
 ]]
 
+local state_manager = require("state_manager")
+-- state_manager.initialize_state()
+local instance = state_manager.create_instance()
+console:log("Created instance with port " .. instance.port .. " and timestamp " .. instance.timestamp)
+
 --[[ begin section Bitmask Utilities ]]
 local PK_KEY_STATE_CTRL_CHAR = "\x01"
 
