@@ -5,6 +5,7 @@ from pathlib import Path
 from pkbt.windows.windowing import Window, get_primary_screen_width
 from pkbt.client.mgba_connection import MGBAConnection
 import time
+from pkbt.image_processing import save_with_crosshair, pixel_rgba, pixel_hex
 
 """Import mGBA path from config"""
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +17,7 @@ with Path (CONFIG_PATH).open("rb") as f:
     server_script = config["paths"]["scripts"]["server"]
     pokemon_red_rom = config["paths"]["roms"]["pokemon_red"]
     STATE_MANAGER = config["paths"]["state_manager"]
+    DATA = config["paths"]["data"]
 
 
 def initialize_state_manager():
@@ -82,8 +84,12 @@ if __name__ == "__main__":
 
     time.sleep(5)
 
-    clients[0].save_screenshot_to_file("screenshot_1.png")
+    clients[0].save_screenshot_to_file("foo.png")
 
     clients[0].reset_game()
     time.sleep(1)
     clients[1].reset_game()
+
+    save_with_crosshair(f"{DATA}/foo.png", f"{DATA}/foo_with_crosshair.png", 100, 100)
+    print(pixel_rgba(f"{DATA}/foo.png", 100, 100))
+    print(pixel_hex(f"{DATA}/foo.png", 100, 100))
