@@ -60,7 +60,7 @@ end
 function PK_handle_screenshot(str)
 	local filename = string.sub(str, 2)
 	console:log("Taking screenshot to " .. filename)
-	emu:screenshot(filename)
+	emu:screenshot("data/" .. filename)
 end
 --[[ end section Screenshot Utilities ]]
 

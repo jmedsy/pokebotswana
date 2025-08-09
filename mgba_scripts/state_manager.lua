@@ -7,7 +7,7 @@ local json = require("json_utils")
 local log_manager = require("log_manager")
 local lm = log_manager.create_logger("STATE_MGR")
 
-local FILE_PATH = "pkbt_app_state.json"
+local FILE_PATH = "data/pkbt_app_state.json"
 local STARTING_PORT = 8888
 
 local state_manager = {}

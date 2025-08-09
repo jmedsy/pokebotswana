@@ -80,8 +80,10 @@ if __name__ == "__main__":
 
     clients = start_clients(processes)
 
-    while True:
-        time.sleep(5)
-        clients[0].reset_game()
-        time.sleep(1)
-        clients[1].reset_game()
+    time.sleep(5)
+
+    clients[0].save_screenshot_to_file("screenshot_1.png")
+
+    clients[0].reset_game()
+    time.sleep(1)
+    clients[1].reset_game()
