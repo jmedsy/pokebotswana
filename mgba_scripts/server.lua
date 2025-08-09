@@ -37,15 +37,32 @@ end
 -- Reset is a special case because it is not a key state, but rather a control character.
 -- It is used to reset the game to the initial state.
 local PK_RESET_CTRL_CHAR = "\x02"
-function PK_is_reset_ctrl_char(ks_str)
-	if string.sub(ks_str, 1, 1) == PK_RESET_CTRL_CHAR then
+function PK_is_reset_cmd(str)
+	if string.sub(str, 1, 1) == PK_RESET_CTRL_CHAR then
 		return true
 	end
 end
 
-function PK_handle_reset_ctrl_char(ks_str)
+function PK_handle_reset()
+	console:log("Resetting game")
 	emu:reset()
 end
+--[[ end section Reset Utilities ]]
+
+--[[ begin section Screenshot Utilities ]]
+local PK_SCREENSHOT_CTRL_CHAR = "\x03"
+function PK_is_screenshot_cmd(str)
+	if string.sub(str, 1, 1) == PK_SCREENSHOT_CTRL_CHAR then
+		return true
+	end
+end
+
+function PK_handle_screenshot(str)
+	local filename = string.sub(str, 2)
+	console:log("Taking screenshot to " .. filename)
+	emu:screenshot(filename)
+end
+--[[ end section Screenshot Utilities ]]
 
 --[[ begin section Repurposed mGBA Example Scripts Code ]]
 server = nil
@@ -88,8 +105,11 @@ function ST_received(id)
 				if PK_is_valid_key_state_bitmask_str(message) then
 					PK_handle_key_state_bitmask(message)
 				end
-				if PK_is_reset_ctrl_char(message) then
-					PK_handle_reset_ctrl_char(message)
+				if PK_is_reset_cmd(message) then
+					PK_handle_reset()
+				end
+				if PK_is_screenshot_cmd(message) then
+					PK_handle_screenshot(message)
 				end
 			end
 

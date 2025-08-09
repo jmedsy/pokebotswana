@@ -8,8 +8,9 @@ from pkbt.input.key_event_type import KeyEventType
 from pkbt.input.key_type import KeyType, KEY_TYPES
 from pkbt.input.key_state import KeyState
 
-"""Control character for resetting the game"""
+"""Control characters for other non-key state messages"""
 RESET_CTRL_CHAR = "\x02"
+SCREENSHOT_CTRL_CHAR = "\x03"
 
 class MGBAConnection:
     _host: str
@@ -145,7 +146,11 @@ class MGBAConnection:
 
     def reset_game(self):
         """Reset the game"""
-        self.send(RESET_CTRL_CHAR)
+        self.send(RESET_CTRL_CHAR + "\n")
+
+    def save_screenshot_to_file(self, filename: str):
+        """Take a screenshot and save it to a file"""
+        self.send(SCREENSHOT_CTRL_CHAR + filename + "\n")
 
     def __enter__(self):
         """Context manager entry"""
@@ -169,5 +174,6 @@ if __name__ == "__main__":
             conn.execute_event(KeyEvent(KeyEventType.RELEASE, key))
             time.sleep(1)
         
+        conn.save_screenshot_to_file("fooshot.png")
         conn.reset_game()
         conn.listen(callback=handle_keystate)
