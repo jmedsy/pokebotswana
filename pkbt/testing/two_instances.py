@@ -3,6 +3,7 @@ from tkinter import W
 import tomllib
 from pathlib import Path
 from pkbt.windows.windowing import Window, get_primary_screen_width
+from pkbt.client.mgba_connection import MGBAConnection
 import time
 
 """Import mGBA path from config"""
@@ -26,7 +27,7 @@ def initialize_state_manager():
 
 
 def start_processes(numInstances: int) -> list[subprocess.Popen]:
-
+    """Start mGBA processes and return a list of processes"""
     # Keep track of new instance positions
     posX = 0
     posY = 0
@@ -54,7 +55,22 @@ def start_processes(numInstances: int) -> list[subprocess.Popen]:
         # Update position for future windows
         posX += w.width()
 
+        # Add process to list
+        processes.append(p)
+
     return processes
+
+
+def start_clients(processes: list[subprocess.Popen]) -> list[MGBAConnection]:
+    """Start MGBA connections and return a list of connections"""
+    clients = []
+    for proc in processes:
+        port = 8888 + processes.index(proc)
+        client = MGBAConnection('localhost', port)
+        client.connect()
+        clients.append(client)
+
+    return clients
 
 
 if __name__ == "__main__":
@@ -62,25 +78,10 @@ if __name__ == "__main__":
     initialize_state_manager()
     processes = start_processes(2)
 
-    print("hello")
+    clients = start_clients(processes)
 
-    # posX = 0
-    # posY = 0
-
-    # for i in range(2):
-
-    #     p1 = subprocess.Popen([
-    #         mgba_path,
-    #         "--script",
-    #         server_script,
-    #         pokemon_red_rom])
-
-    #     w1 = Window.from_pid(p1.pid)
-
-    #     if posX + w1.width() > get_primary_screen_width():
-    #         posX = 0
-    #         posY += w1.height()
-
-    #     w1.move(posX, posY)
-        
-    #     posX += w1.width()
+    while True:
+        time.sleep(5)
+        clients[0].reset_game()
+        time.sleep(1)
+        clients[1].reset_game()

@@ -138,7 +138,7 @@ function ST_accept()
 end
 
 --[[ begin Main loop ]]
-local port = 8888
+local port = instance.port
 server = nil
 while not server do
 	server, err = socket.bind(nil, port)
