@@ -16,8 +16,8 @@ console:log("Created instance with port " .. instance.port .. " and timestamp " 
 local PK_KEY_STATE_CTRL_CHAR = "\x01"
 
 function PK_is_valid_key_state_bitmask_str(ks_str)
-	-- Check if string starts with control character. Otherwise,
-	-- it is assumed to be a general message and not a key state.
+	-- Check if string starts with key state control character, which is used to
+	-- distinguish key state messages from other messages.
 	if string.sub(ks_str, 1, 1) == PK_KEY_STATE_CTRL_CHAR then
 		return true
 	else
@@ -32,6 +32,20 @@ function PK_handle_key_state_bitmask(ks_bitmask)
     emu:setKeys(bitmask)
 end
 --[[ end section Bitmask Utilities ]]
+
+--[[ begin section Reset Utilities ]]
+-- Reset is a special case because it is not a key state, but rather a control character.
+-- It is used to reset the game to the initial state.
+local PK_RESET_CTRL_CHAR = "\x02"
+function PK_is_reset_ctrl_char(ks_str)
+	if string.sub(ks_str, 1, 1) == PK_RESET_CTRL_CHAR then
+		return true
+	end
+end
+
+function PK_handle_reset_ctrl_char(ks_str)
+	emu:reset()
+end
 
 --[[ begin section Repurposed mGBA Example Scripts Code ]]
 server = nil
@@ -67,11 +81,15 @@ function ST_received(id)
 		if p then
 			console:log(ST_format(id, p:match("^(.-)%s*$")))
 
-			-- Added to mGBA official socket communication example to handle bitmask messages.
+			-- Added to mGBA official socket communication example to handle bitmask messages
+			-- and reset control character.
 			local messages = p:gmatch("[^\n]+")
 			for message in messages do
 				if PK_is_valid_key_state_bitmask_str(message) then
 					PK_handle_key_state_bitmask(message)
+				end
+				if PK_is_reset_ctrl_char(message) then
+					PK_handle_reset_ctrl_char(message)
 				end
 			end
 

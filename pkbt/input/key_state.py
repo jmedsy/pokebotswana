@@ -7,9 +7,9 @@ class KeyState:
     _key_states: Dict[str, bool] = {}
 
     def __init__(self):
-        self.reset()
+        self.clear()
 
-    def reset(self):
+    def clear(self):
         for k in KEY_TYPES:
             self._key_states[k] = False
 

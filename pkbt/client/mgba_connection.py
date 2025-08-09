@@ -8,6 +8,9 @@ from pkbt.input.key_event_type import KeyEventType
 from pkbt.input.key_type import KeyType, KEY_TYPES
 from pkbt.input.key_state import KeyState
 
+"""Control character for resetting the game"""
+RESET_CTRL_CHAR = "\x02"
+
 class MGBAConnection:
     _host: str
     _port: int
@@ -140,6 +143,10 @@ class MGBAConnection:
                 self._key_state.set_key(key_event.key_type, False)
                 self.send(self._key_state.serialize_bitmask())
 
+    def reset_game(self):
+        """Reset the game"""
+        self.send(RESET_CTRL_CHAR)
+
     def __enter__(self):
         """Context manager entry"""
         self.connect()
@@ -162,4 +169,5 @@ if __name__ == "__main__":
             conn.execute_event(KeyEvent(KeyEventType.RELEASE, key))
             time.sleep(1)
         
+        conn.reset_game()
         conn.listen(callback=handle_keystate)
