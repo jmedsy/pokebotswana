@@ -3,10 +3,10 @@ import time
 import threading
 import msvcrt
 from typing import Optional, Callable
-from key_event import KeyEvent
-from key_event_type import KeyEventType
-from key_type import KeyType, KEY_TYPES
-from key_state import KeyState
+from pkbt.input.key_event import KeyEvent
+from pkbt.input.key_event_type import KeyEventType
+from pkbt.input.key_type import KeyType, KEY_TYPES
+from pkbt.input.key_state import KeyState
 
 class MGBAConnection:
     _host: str

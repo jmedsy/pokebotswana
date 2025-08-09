@@ -1,6 +1,5 @@
-from enum import Enum, auto
-from key_event_type import KeyEventType
-from key_type import KeyType
+from pkbt.input.key_event_type import KeyEventType
+from pkbt.input.key_type import KeyType
 
 PUSH_TIME = 0.05 # Default key push time
 

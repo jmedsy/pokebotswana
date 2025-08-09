@@ -5,10 +5,12 @@ import time
 import win32gui, win32con, win32process
 
 """Import mGBA path from config"""
-with Path ("../../config.toml").open("rb") as f:
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_PATH = PROJECT_ROOT / "config.toml"
+with Path (CONFIG_PATH).open("rb") as f:
     config = tomllib.load(f)
     mgba_path = config["paths"]["mgba_dev"]
-    pokemon_red_rom = config["paths"]["pokemon_red_rom"]
+    pokemon_red_rom = config["paths"]["roms"]["pokemon_red_rom"]
 
 def top_window_from_pid(pid, timeout=10):
     deadline = time.time() + timeout

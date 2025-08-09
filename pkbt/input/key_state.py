@@ -1,5 +1,5 @@
 from typing import Dict
-from key_type import KeyType, KEY_TYPES
+from pkbt.input.key_type import KeyType, KEY_TYPES
 
 KEY_STATE_CTRL_CHAR = "\x01"
 
