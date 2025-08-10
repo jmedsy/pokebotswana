@@ -2,7 +2,7 @@ import subprocess
 from tkinter import W
 import tomllib
 from pathlib import Path
-from pkbt.windows.windowing import Window, get_primary_screen_width
+from pkbt.windowing import Window, get_primary_screen_width
 
 """Import mGBA path from config"""
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
