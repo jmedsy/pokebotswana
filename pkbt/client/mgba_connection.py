@@ -147,6 +147,13 @@ class MGBAConnection:
     def reset_game(self):
         """Reset the game"""
         self.send(RESET_CTRL_CHAR + "\n")
+        # Clear local key state after reset to prevent old states from interfering
+        self._key_state.clear()
+        # Force clear all keys multiple times to ensure clean state
+        time.sleep(0.1)  # Wait for reset to complete
+        self.send(self._key_state.serialize_bitmask())  # Send all keys released
+        time.sleep(0.05)  # Small delay
+        self.send(self._key_state.serialize_bitmask())  # Send again to be sure
 
     def save_screenshot_to_file(self, filename: str):
         """Take a screenshot and save it to a file"""

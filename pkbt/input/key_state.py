@@ -22,5 +22,5 @@ class KeyState:
         for i, key_type in enumerate(KEY_TYPES):
             if self._key_states[key_type]:
                 keys |= (1 << i)
-            bitmask_str = f"{KEY_STATE_CTRL_CHAR}{keys}\n"
+        bitmask_str = f"{KEY_STATE_CTRL_CHAR}{keys}\n"
         return bitmask_str

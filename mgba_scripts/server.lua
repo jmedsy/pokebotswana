@@ -45,6 +45,7 @@ end
 
 function PK_handle_reset()
 	console:log("Resetting game")
+	emu:setKeys(0)
 	emu:reset()
 end
 --[[ end section Reset Utilities ]]

@@ -5,6 +5,8 @@ state_manager = "C:/Users/Josh/repos/pokebotswana/data/pkbt_app_state.json"
 
 [paths.roms]
 pokemon_red = "C:/Users/Josh/repos/pokebotswana/roms/Pokemon - Fire Red Version (U) (V1.1).zip"
+pokemon_sapphire = "C:/Users/Josh/repos/pokebotswana/roms/Pokemon - Sapphire Version (U) (V1.1).zip"
+pokemon_emerald = "C:/Users/Josh/repos/pokebotswana/roms/Pokemon - Emerald Version (U).zip"
 
 [paths.scripts]
 server = "C:/Users/Josh/repos/pokebotswana/mgba_scripts/server.lua"
