@@ -3,7 +3,7 @@ from tkinter import W
 import tomllib
 from pathlib import Path
 from pkbt.input.key_type import KeyType
-from pkbt.windows.windowing import Window, get_primary_screen_width
+from pkbt.windowing import Window, get_primary_screen_width
 from pkbt.client.mgba_connection import MGBAConnection
 import time
 from pkbt.image_processing import save_with_crosshair, pixel_rgb, pixel_hex
