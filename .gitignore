@@ -23,4 +23,4 @@ mGBA-build-2025-07-15-win32-8840-62070f11d5c8b9c55c53479c7e133d06ca676323/
 *.pyzwz
 
 # PKBT session data generated at runtime
-data/
+temp/

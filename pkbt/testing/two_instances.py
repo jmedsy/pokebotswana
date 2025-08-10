@@ -23,11 +23,16 @@ with Path (CONFIG_PATH).open("rb") as f:
     pokemon_sapphire_rom = config["paths"]["roms"]["pokemon_sapphire"]
     pokemon_emerald_rom = config["paths"]["roms"]["pokemon_emerald"]
     STATE_MANAGER = config["paths"]["state_manager"]
-    DATA = config["paths"]["data"]
+    TEMP = config["paths"]["temp"]
 
 
 def initialize_state_manager():
-    """Ensure the state_manager file exists and contains an empty array"""
+    """Ensure the temp directory and state_manager file exist and contain an empty array"""
+    # Create temp directory if it doesn't exist
+    temp_dir = Path(TEMP)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Ensure the state_manager file exists and contains an empty array
     if not Path(STATE_MANAGER).exists():
         Path(STATE_MANAGER).touch()
     with open(STATE_MANAGER, "w", encoding="utf-8") as f:
@@ -155,8 +160,8 @@ def client_thread_fn(idx, process: subprocess.Popen, client: MGBAConnection):
             time.sleep(2.5)
             total_count += 1
             print(f"Total count: {total_count}")
-            if blueish_hex != pixel_hex(f"{DATA}/{idx}foo.png", crosshair_x, crosshair_y) and pixel_hex(f"{DATA}/{idx}foo.png", crosshair_x, crosshair_y) not in acceptable_mistakes:
-                print(f"Found on {idx} with color {pixel_hex(f"{DATA}/{idx}foo.png", crosshair_x, crosshair_y)}")
+            if blueish_hex != pixel_hex(f"{TEMP}/{idx}foo.png", crosshair_x, crosshair_y) and pixel_hex(f"{TEMP}/{idx}foo.png", crosshair_x, crosshair_y) not in acceptable_mistakes:
+                print(f"Found on {idx} with color {pixel_hex(f"{TEMP}/{idx}foo.png", crosshair_x, crosshair_y)}")
                 found = True
 
         # for i in range(30):
@@ -215,8 +220,8 @@ if __name__ == "__main__":
     # crosshair_x = 40
     # crosshair_y = 53
 
-    # save_with_crosshair(f"{DATA}/foo.png", f"{DATA}/foo_with_crosshair.png", crosshair_x, crosshair_y)
-    # print(pixel_rgb(f"{DATA}/foo.png", crosshair_x , crosshair_y))
-    # print(pixel_hex(f"{DATA}/foo.png", crosshair_x, crosshair_y))
+    # save_with_crosshair(f"{TEMP}/foo.png", f"{TEMP}/foo_with_crosshair.png", crosshair_x, crosshair_y)
+    # print(pixel_rgb(f"{TEMP}/foo.png", crosshair_x , crosshair_y))
+    # print(pixel_hex(f"{TEMP}/foo.png", crosshair_x, crosshair_y))
 
     # time.sleep(2)
