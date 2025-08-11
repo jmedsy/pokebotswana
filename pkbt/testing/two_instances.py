@@ -10,26 +10,20 @@ from pkbt.image_processing import save_with_crosshair, pixel_rgb, pixel_hex
 import threading
 from pkbt.input.key_event import KeyEvent
 from pkbt.input.key_event_type import KeyEventType
+from pkbt.config import POKEMON_EMERALD_ROM, SERVER_SCRIPT, MGBA_DEV, TEMP_DIR
 
 """Import mGBA path from config"""
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = PROJECT_ROOT / "config.toml"
 with Path (CONFIG_PATH).open("rb") as f:
     config = tomllib.load(f)
-    mgba_path = config["paths"]["mgba_dev"]
-    input_display_script = config["paths"]["scripts"]["input_display"]
-    server_script = config["paths"]["scripts"]["server"]
-    pokemon_red_rom = config["paths"]["roms"]["pokemon_red"]
-    pokemon_sapphire_rom = config["paths"]["roms"]["pokemon_sapphire"]
-    pokemon_emerald_rom = config["paths"]["roms"]["pokemon_emerald"]
     STATE_MANAGER = config["paths"]["state_manager"]
-    TEMP = config["paths"]["temp"]
 
 
 def initialize_state_manager():
     """Ensure the temp directory and state_manager file exist and contain an empty array"""
     # Create temp directory if it doesn't exist
-    temp_dir = Path(TEMP)
+    temp_dir = Path(TEMP_DIR)
     temp_dir.mkdir(parents=True, exist_ok=True)
     
     # Ensure the state_manager file exists and contains an empty array
@@ -51,10 +45,10 @@ def start_processes(numInstances: int) -> list[subprocess.Popen]:
 
         # Start mGBA process
         p = subprocess.Popen([
-            mgba_path,
+            MGBA_DEV,
             "--script",
-            server_script,
-            pokemon_emerald_rom])
+            SERVER_SCRIPT,
+            POKEMON_EMERALD_ROM])
 
         # Get window
         w = Window.from_pid(p.pid)
@@ -160,8 +154,8 @@ def client_thread_fn(idx, process: subprocess.Popen, client: MGBAConnection):
             time.sleep(2.5)
             total_count += 1
             print(f"Total count: {total_count}")
-            if blueish_hex != pixel_hex(f"{TEMP}/{idx}foo.png", crosshair_x, crosshair_y) and pixel_hex(f"{TEMP}/{idx}foo.png", crosshair_x, crosshair_y) not in acceptable_mistakes:
-                print(f"Found on {idx} with color {pixel_hex(f"{TEMP}/{idx}foo.png", crosshair_x, crosshair_y)}")
+            if blueish_hex != pixel_hex(f"{TEMP_DIR}/{idx}foo.png", crosshair_x, crosshair_y) and pixel_hex(f"{TEMP_DIR}/{idx}foo.png", crosshair_x, crosshair_y) not in acceptable_mistakes:
+                print(f"Found on {idx} with color {pixel_hex(f"{TEMP_DIR}/{idx}foo.png", crosshair_x, crosshair_y)}")
                 found = True
 
         # for i in range(30):
@@ -220,8 +214,8 @@ if __name__ == "__main__":
     # crosshair_x = 40
     # crosshair_y = 53
 
-    # save_with_crosshair(f"{TEMP}/foo.png", f"{TEMP}/foo_with_crosshair.png", crosshair_x, crosshair_y)
-    # print(pixel_rgb(f"{TEMP}/foo.png", crosshair_x , crosshair_y))
-    # print(pixel_hex(f"{TEMP}/foo.png", crosshair_x, crosshair_y))
+    # save_with_crosshair(f"{TEMP_DIR}/foo.png", f"{TEMP_DIR}/foo_with_crosshair.png", crosshair_x, crosshair_y)
+    # print(pixel_rgb(f"{TEMP_DIR}/foo.png", crosshair_x , crosshair_y))
+    # print(pixel_hex(f"{TEMP_DIR}/foo.png", crosshair_x, crosshair_y))
 
     # time.sleep(2)
