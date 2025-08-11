@@ -1,0 +1,24 @@
+from pathlib import Path
+import tomllib
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CONFIG_FILE = REPO_ROOT / "config.toml"
+
+with CONFIG_FILE.open("rb") as f:
+    CONFIG = tomllib.load(f)
+
+"""mGBA Scripts"""
+SCRIPTS_DIR = REPO_ROOT / "mgba_scripts"
+SERVER_SCRIPT = SCRIPTS_DIR / CONFIG["scripts"]["server"]
+INPUT_DISPLAY_SCRIPT = SCRIPTS_DIR / CONFIG["scripts"]["input_display"]
+
+"""mGBA Emulator"""
+MGBA_DEV = CONFIG["emulator"]["mgba_dev"]
+
+"""ROMS"""
+POKEMON_RED_ROM = REPO_ROOT / CONFIG["roms"]["pokemon_red"]
+POKEMON_SAPPHIRE_ROM = REPO_ROOT / CONFIG["roms"]["pokemon_sapphire"]
+POKEMON_EMERALD_ROM = REPO_ROOT / CONFIG["roms"]["pokemon_emerald"]
+
+"""Directories"""
+TEMP_DIR = REPO_ROOT / CONFIG["directories"]["temp"]
