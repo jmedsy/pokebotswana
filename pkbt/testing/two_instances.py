@@ -1,7 +1,4 @@
 import subprocess
-from tkinter import W
-import tomllib
-from pathlib import Path
 from pkbt.input.key_type import KeyType
 from pkbt.windowing import Window, get_primary_screen_width
 from pkbt.client.mgba_connection import MGBAConnection
@@ -11,27 +8,7 @@ import threading
 from pkbt.input.key_event import KeyEvent
 from pkbt.input.key_event_type import KeyEventType
 from pkbt.config import POKEMON_EMERALD_ROM, SERVER_SCRIPT, MGBA_DEV, TEMP_DIR
-
-"""Import mGBA path from config"""
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = PROJECT_ROOT / "config.toml"
-with Path (CONFIG_PATH).open("rb") as f:
-    config = tomllib.load(f)
-    STATE_MANAGER = config["paths"]["state_manager"]
-
-
-def initialize_state_manager():
-    """Ensure the temp directory and state_manager file exist and contain an empty array"""
-    # Create temp directory if it doesn't exist
-    temp_dir = Path(TEMP_DIR)
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Ensure the state_manager file exists and contains an empty array
-    if not Path(STATE_MANAGER).exists():
-        Path(STATE_MANAGER).touch()
-    with open(STATE_MANAGER, "w", encoding="utf-8") as f:
-        f.write("[]")
-
+from pkbt.state_manager import initialize_state_manager
 
 def start_processes(numInstances: int) -> list[subprocess.Popen]:
     """Start mGBA processes and return a list of processes"""
