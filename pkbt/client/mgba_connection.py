@@ -13,23 +13,16 @@ RESET_CTRL_CHAR = "\x02"
 SCREENSHOT_CTRL_CHAR = "\x03"
 
 class MGBAConnection:
-    _host: str
-    _port: int
-    _socket: Optional[socket.socket] = None
-    _connected: bool
-    _on_message: Optional[Callable] = None
-    _ping_thread: Optional[threading.Thread] = None
-    _stop_ping: bool = False
 
     def __init__(self, host="localhost", port=8888):
-        self._host = host
-        self._port = port
-        self._socket = None
-        self._connected = False
-        self._on_message = None
-        self._key_state = KeyState()
-        self._ping_thread = None
-        self._stop_ping = False
+        self._host: str = host
+        self._port: int = port
+        self._socket: Optional[socket.socket] = None
+        self._connected: bool = False
+        self._on_message: Optional[Callable] = None
+        self._key_state: KeyState = KeyState()
+        self._ping_thread: Optional[threading.Thread] = None
+        self._stop_ping: bool = False
 
     def connect(self) -> bool:
         """Connect to the MGBA server (see socket_server.lua)"""
