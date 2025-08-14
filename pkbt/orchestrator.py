@@ -2,7 +2,6 @@ import subprocess
 from typing import Callable
 from pkbt.emulator import EmulatorProc
 from pkbt.mgba_connection import MGBAConnection
-from pkbt.state_manager import initialize_state_manager
 
 class Orchestrator:
 
@@ -11,13 +10,12 @@ class Orchestrator:
         self.client = client
 
     def perform_task(self, task: Callable[[EmulatorProc, MGBAConnection], None]) -> None:
-        initialize_state_manager()
         task(self.emu, self.client)
 
     def exit(self) -> None:
         try:
-            self.emu.process.terminate()
             self.client.disconnect()
+            self.emu.process.terminate()
         except Exception as e:
             print(f"Error exiting orchestrator: {e}")
 
@@ -30,6 +28,7 @@ if __name__ == "__main__":
     from pkbt.input.key_event import KeyEvent
     from pkbt.input.key_event_type import KeyEventType
     from pkbt.input.key_type import KeyType
+    from pkbt.state_manager import initialize_state_manager
 
     emu = EmulatorProc(MGBA_DEV, POKEMON_RED_ROM, [SERVER_SCRIPT, INPUT_DISPLAY_SCRIPT])
     client = MGBAConnection('localhost', 8888)
@@ -39,6 +38,7 @@ if __name__ == "__main__":
     # It will be called with the emulator and client as arguments
     def example(e, c):
         # Starting up
+        initialize_state_manager()
         e.start()
         c.connect()
 
