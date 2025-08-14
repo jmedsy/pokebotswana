@@ -15,8 +15,11 @@ class Orchestrator:
         task(self.emu, self.client)
 
     def exit(self) -> None:
-        self.emu.process.terminate()
-        self.client.disconnect()
+        try:
+            self.emu.process.terminate()
+            self.client.disconnect()
+        except Exception as e:
+            print(f"Error exiting orchestrator: {e}")
 
 if __name__ == "__main__":
 
@@ -40,8 +43,8 @@ if __name__ == "__main__":
         c.connect()
 
         # Main loop, this is where you tell it to do stuff
-        for _ in range(10):
-            client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
+        for _ in range(3):
+            c.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
             time.sleep(1)
 
         # Cleanup
