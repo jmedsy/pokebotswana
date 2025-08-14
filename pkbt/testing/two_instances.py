@@ -9,6 +9,7 @@ from pkbt.input.key_event import KeyEvent
 from pkbt.input.key_event_type import KeyEventType
 from pkbt.config import POKEMON_EMERALD_ROM, SERVER_SCRIPT, MGBA_DEV, TEMP_DIR
 from pkbt.state_manager import initialize_state_manager
+from pkbt.emulator import EmulatorProc
 
 def start_processes(numInstances: int) -> list[subprocess.Popen]:
     """Start mGBA processes and return a list of processes"""
@@ -21,14 +22,11 @@ def start_processes(numInstances: int) -> list[subprocess.Popen]:
     for _ in range(numInstances):
 
         # Start mGBA process
-        p = subprocess.Popen([
-            MGBA_DEV,
-            "--script",
-            SERVER_SCRIPT,
-            POKEMON_EMERALD_ROM])
+        emu = EmulatorProc(MGBA_DEV, POKEMON_EMERALD_ROM, [SERVER_SCRIPT])
+        emu.start()
 
         # Get window
-        w = Window.from_pid(p.pid)
+        w = Window.from_pid(emu.process.pid)
 
         # Place window in next sequential position
         if posX + w.width() > get_primary_screen_width():
@@ -40,7 +38,7 @@ def start_processes(numInstances: int) -> list[subprocess.Popen]:
         posX += w.width()
 
         # Add process to list
-        processes.append(p)
+        processes.append(emu)
 
     return processes
 
