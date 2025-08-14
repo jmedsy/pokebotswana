@@ -23,3 +23,6 @@ POKEMON_EMERALD_ROM = REPO_ROOT / CONFIG["roms"]["pokemon_emerald"]
 """Runtime"""
 TEMP_DIR = REPO_ROOT / CONFIG["runtime"]["temp_directory"]
 STATE_MANAGER = TEMP_DIR / CONFIG["runtime"]["state_manager"]
+
+"""Input"""
+DEFAULT_PUSH_TIME = CONFIG["input"]["default_push_time"]

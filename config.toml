@@ -9,8 +9,13 @@ pokemon_sapphire = "C:/Users/Josh/repos/pokebotswana/roms/Pokemon - Sapphire Ver
 pokemon_emerald = "C:/Users/Josh/repos/pokebotswana/roms/Pokemon - Emerald Version (U).zip"
 
 
-# INTERAL - DO NOT MODIFY #########################
+# Tweak defaults if desired
 
+[input]
+default_push_time = 0.05
+
+
+# INTERAL - DO NOT MODIFY #########################
 
 [scripts]
 server = "server.lua"

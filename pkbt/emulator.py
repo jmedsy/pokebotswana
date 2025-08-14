@@ -2,10 +2,6 @@ from pathlib import Path
 import subprocess
 
 class EmulatorProc:
-    exe: Path
-    rom: Path
-    scripts: [Path]
-    process: subprocess.Popen
 
     def __init__(self, exe: Path, rom: Path, scripts: list[Path] | None = None) -> None:
         self.exe = exe

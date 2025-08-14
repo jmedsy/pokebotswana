@@ -1,12 +1,13 @@
 from typing import Dict
 from pkbt.input.key_type import KeyType, KEY_TYPES
 
+# Do not change, hard-coded in mGBA socket server
 KEY_STATE_CTRL_CHAR = "\x01"
 
 class KeyState:
-    _key_states: Dict[str, bool] = {}
-
+    
     def __init__(self):
+        self._key_states: Dict[KeyType, bool] = {}
         self.clear()
 
     def clear(self):
