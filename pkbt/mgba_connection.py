@@ -14,7 +14,7 @@ SCREENSHOT_CTRL_CHAR = "\x03"
 
 class MGBAConnection:
 
-    def __init__(self, host="localhost", port=8888):
+    def __init__(self, host="localhost", port=8888) -> None:
         self._host: str = host
         self._port: int = port
         self._socket: Optional[socket.socket] = None

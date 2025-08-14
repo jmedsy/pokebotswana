@@ -1,7 +1,7 @@
 import subprocess
 from pkbt.input.key_type import KeyType
 from pkbt.windowing import Window, get_primary_screen_width
-from pkbt.client.mgba_connection import MGBAConnection
+from pkbt.mgba_connection import MGBAConnection
 import time
 from pkbt.image_processing import save_with_crosshair, pixel_rgb, pixel_hex
 import threading
@@ -10,6 +10,7 @@ from pkbt.input.key_event_type import KeyEventType
 from pkbt.config import POKEMON_EMERALD_ROM, SERVER_SCRIPT, MGBA_DEV, TEMP_DIR
 from pkbt.state_manager import initialize_state_manager
 from pkbt.emulator import EmulatorProc
+from pkbt.orchestrator import Orchestrator
 
 def start_processes(numInstances: int) -> list[subprocess.Popen]:
     """Start mGBA processes and return a list of processes"""
