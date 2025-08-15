@@ -9,11 +9,11 @@ from pkbt.state_manager import initialize_state_manager
 import time
 import threading
 from typing import Callable
-from pkbt.windowing import Window, arrange_in_grid
+from pkbt.windowing import Window, arrange_in_grid, minimize_windows_starting_with
 
 
 """Tweak these for test"""
-NUM_INSTANCES = 8
+NUM_INSTANCES = 15
 STARTING_PORT = 8888 # Leave me alone
 
 
@@ -58,9 +58,10 @@ for i in range(NUM_INSTANCES):
     emu_pids.append(pid)
 
 # Arrange the windows in a grid
-print(emu_pids)
+time.sleep(13)
 windows = [Window.from_pid(pid) for pid in emu_pids]
-arrange_in_grid(windows, num_cols=4, num_rows=2)
+arrange_in_grid(windows, num_cols=5, num_rows=3)
+minimize_windows_starting_with("Scripting")
 
 """
 threads = []
