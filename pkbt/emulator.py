@@ -8,7 +8,7 @@ class EmulatorProc:
         self.rom = rom
         self.scripts = scripts
 
-    def start(self) -> None:
+    def start(self) -> bool:
         """Starts the emulator with (optionally) the given scripts."""
         scripting_args = []
         for s in self.scripts or []:
@@ -21,9 +21,11 @@ class EmulatorProc:
         ])
 
         if p is None:
-            raise Exception("Failed to start emulator")
+            print("Failed to start emulator")
+            return False
         else:
             self.process = p
+            return True
 
     def stop(self) -> None:
         """Stops the emulator."""

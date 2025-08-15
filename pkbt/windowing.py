@@ -24,7 +24,10 @@ def _top_window_from_pid(pid: int, timeout: float = 10.0) -> int:
                 return
             _, wpid = win32process.GetWindowThreadProcessId(hwnd)
             if wpid == pid and win32gui.GetWindow(hwnd, win32con.GW_OWNER) == 0:
-                found.append(hwnd)
+                title = win32gui.GetWindowText(hwnd)
+                # Only include windows that start with "mGBA"
+                if title.startswith("mGBA"):
+                    found.append(hwnd)
 
         win32gui.EnumWindows(cb, None)
 
@@ -86,6 +89,48 @@ def get_primary_screen_width() -> int:
 
 def get_primary_screen_height() -> int:
     return get_primary_screen_size()[1]
+
+def minimize_windows_starting_with(prefix: str) -> None:
+    """Minimize all visible windows that start with the given prefix."""
+    def cb(hwnd, _):
+        if not win32gui.IsWindowVisible(hwnd):
+            return
+        title = win32gui.GetWindowText(hwnd)
+        if title.startswith(prefix):
+            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+    
+    win32gui.EnumWindows(cb, None)
+
+def arrange_in_grid(windows: list["Window"], num_cols: int, num_rows: int) -> None:
+    """Arrange the given windows in a grid of the given size."""
+    for i, w in enumerate(windows):
+        col = i % num_cols
+        row = i // num_cols
+        w.move(col * w.width(), row * w.height())
+
+def arrange_windows_auto_grid(windows: list["Window"], max_width: int) -> None:
+    """Arrange windows left to right, top to bottom, wrapping when they don't fit."""
+    if not windows:
+        return
+    
+    current_x = 0
+    current_y = 0
+    row_height = 0
+    
+    for w in windows:
+        # Check if this window fits on the current row
+        if current_x + w.width() > max_width and current_x > 0:
+            # Move to next row
+            current_x = 0
+            current_y += row_height
+            row_height = 0
+        
+        # Position the window
+        w.move(current_x, current_y)
+        
+        # Update position for next window
+        current_x += w.width()
+        row_height = max(row_height, w.height())
 
 @dataclass(frozen=True)
 class Window:
