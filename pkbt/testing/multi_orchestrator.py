@@ -9,11 +9,11 @@ from pkbt.state_manager import initialize_state_manager
 import time
 import threading
 from typing import Callable
-from pkbt.windowing import Window, arrange_in_grid, minimize_windows_starting_with
+from pkbt.windowing import Window, arrange_windows_auto_grid, minimize_windows_starting_with, get_primary_screen_width
 
 
 """Tweak these for test"""
-NUM_INSTANCES = 3
+NUM_INSTANCES = 15
 STARTING_PORT = 8888 # Leave me alone
 
 """The task that will be performed by each orchestrator"""
@@ -42,9 +42,10 @@ for i in range(NUM_INSTANCES):
     emu_pids.append(pid)
 
 # Arrange the windows in a grid
-time.sleep(6)
+time.sleep(15)
 windows = [Window.from_pid(pid) for pid in emu_pids]
-arrange_in_grid(windows, num_cols=3, num_rows=1)
+# arrange_in_grid(windows, num_cols=3, num_rows=1)
+arrange_windows_auto_grid(windows, max_width=get_primary_screen_width())
 minimize_windows_starting_with("Scripting")
 
 # Start the tasks

@@ -108,6 +108,30 @@ def arrange_in_grid(windows: list["Window"], num_cols: int, num_rows: int) -> No
         row = i // num_cols
         w.move(col * w.width(), row * w.height())
 
+def arrange_windows_auto_grid(windows: list["Window"], max_width: int) -> None:
+    """Arrange windows left to right, top to bottom, wrapping when they don't fit."""
+    if not windows:
+        return
+    
+    current_x = 0
+    current_y = 0
+    row_height = 0
+    
+    for w in windows:
+        # Check if this window fits on the current row
+        if current_x + w.width() > max_width and current_x > 0:
+            # Move to next row
+            current_x = 0
+            current_y += row_height
+            row_height = 0
+        
+        # Position the window
+        w.move(current_x, current_y)
+        
+        # Update position for next window
+        current_x += w.width()
+        row_height = max(row_height, w.height())
+
 @dataclass(frozen=True)
 class Window:
     hwnd: int
