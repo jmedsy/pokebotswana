@@ -1,7 +1,7 @@
 from pkbt.emulator import EmulatorProc
 from pkbt.orchestrator import Orchestrator
 from pkbt.mgba_connection import MGBAConnection
-from pkbt.config import POKEMON_RED_ROM, SERVER_SCRIPT, MGBA_DEV
+from pkbt.config import POKEMON_RED_ROM, SERVER_SCRIPT, MGBA_DEV, INPUT_DISPLAY_SCRIPT
 from pkbt.input.key_event import KeyEvent
 from pkbt.input.key_event_type import KeyEventType
 from pkbt.input.key_type import KeyType
@@ -13,31 +13,15 @@ from pkbt.windowing import Window, arrange_in_grid, minimize_windows_starting_wi
 
 
 """Tweak these for test"""
-NUM_INSTANCES = 15
+NUM_INSTANCES = 3
 STARTING_PORT = 8888 # Leave me alone
 
-
-def task(e, c):
-    """The actions that will be performed by each orchestrator"""
-    e.start()
-    c.connect()
+"""The task that will be performed by each orchestrator"""
+def task(o: Orchestrator, idx: int):
+    o.client.connect()
     for _ in range(6):
-        c.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(1)
-
-
-def run_orchestrator(idx: int, task_callback: Callable[[EmulatorProc, MGBAConnection], None]):
-    """The function that will be called to run the orchestrator thread"""
-    # Create an orchestrator for each instance
-    orch = Orchestrator(
-        EmulatorProc(MGBA_DEV, POKEMON_RED_ROM, [SERVER_SCRIPT]),
-        MGBAConnection('localhost', STARTING_PORT + idx))
-
-    # Perform the task
-    orch.perform_task(task_callback)
-
-    # Exit the orchestrator
-    orch.exit()
 
 
 """Putting it all together and running it"""
@@ -47,7 +31,7 @@ initialize_state_manager()
 orchestrators = []
 for i in range(NUM_INSTANCES):
     orch = Orchestrator(
-        EmulatorProc(MGBA_DEV, POKEMON_RED_ROM, [SERVER_SCRIPT]),
+        EmulatorProc(MGBA_DEV, POKEMON_RED_ROM, [SERVER_SCRIPT, INPUT_DISPLAY_SCRIPT]),
         MGBAConnection('localhost', STARTING_PORT + i))
     orchestrators.append(orch)
 
@@ -58,15 +42,15 @@ for i in range(NUM_INSTANCES):
     emu_pids.append(pid)
 
 # Arrange the windows in a grid
-time.sleep(13)
+time.sleep(6)
 windows = [Window.from_pid(pid) for pid in emu_pids]
-arrange_in_grid(windows, num_cols=5, num_rows=3)
+arrange_in_grid(windows, num_cols=3, num_rows=1)
 minimize_windows_starting_with("Scripting")
 
-"""
+# Start the tasks
 threads = []
-for i in range(NUM_INSTANCES):
-    t = threading.Thread(target=run_orchestrator, args=(i, task), daemon=True)
+for i, orchestrator in enumerate(orchestrators):
+    t = threading.Thread(target=task, args=(orchestrator, i), daemon=True)
     t.start()
     threads.append(t)
 
@@ -74,4 +58,3 @@ for i in range(NUM_INSTANCES):
 # causing daemon threads to be killed before they complete their tasks
 for t in threads:
     t.join()
-"""
