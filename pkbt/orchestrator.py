@@ -9,8 +9,8 @@ class Orchestrator:
         self.emu = emu
         self.client = client
 
-    def perform_task(self, task: Callable[[EmulatorProc, MGBAConnection], None]) -> None:
-        task(self.emu, self.client)
+    def perform_task(self, task):
+        return task(self.emu, self.client)
 
     def exit(self) -> None:
         try:

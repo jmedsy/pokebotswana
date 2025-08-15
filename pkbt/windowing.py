@@ -87,6 +87,13 @@ def get_primary_screen_width() -> int:
 def get_primary_screen_height() -> int:
     return get_primary_screen_size()[1]
 
+def arrange_in_grid(windows: list["Window"], num_cols: int, num_rows: int) -> None:
+    """Arrange the given windows in a grid of the given size."""
+    for i, w in enumerate(windows):
+        col = i % num_cols
+        row = i // num_cols
+        w.move(col * w.width(), row * w.height())
+
 @dataclass(frozen=True)
 class Window:
     hwnd: int

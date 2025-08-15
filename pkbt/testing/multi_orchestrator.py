@@ -9,10 +9,11 @@ from pkbt.state_manager import initialize_state_manager
 import time
 import threading
 from typing import Callable
+from pkbt.windowing import Window, arrange_in_grid
 
 
 """Tweak these for test"""
-NUM_INSTANCES = 2
+NUM_INSTANCES = 8
 STARTING_PORT = 8888 # Leave me alone
 
 
@@ -41,6 +42,27 @@ def run_orchestrator(idx: int, task_callback: Callable[[EmulatorProc, MGBAConnec
 
 """Putting it all together and running it"""
 initialize_state_manager()
+
+# Create the orchestrators
+orchestrators = []
+for i in range(NUM_INSTANCES):
+    orch = Orchestrator(
+        EmulatorProc(MGBA_DEV, POKEMON_RED_ROM, [SERVER_SCRIPT]),
+        MGBAConnection('localhost', STARTING_PORT + i))
+    orchestrators.append(orch)
+
+# Start the emulators
+emu_pids: list[int] = []
+for i in range(NUM_INSTANCES):
+    pid = orchestrators[i].perform_task(lambda e, c: e.process.pid if e.start() else None)
+    emu_pids.append(pid)
+
+# Arrange the windows in a grid
+print(emu_pids)
+windows = [Window.from_pid(pid) for pid in emu_pids]
+arrange_in_grid(windows, num_cols=4, num_rows=2)
+
+"""
 threads = []
 for i in range(NUM_INSTANCES):
     t = threading.Thread(target=run_orchestrator, args=(i, task), daemon=True)
@@ -51,3 +73,4 @@ for i in range(NUM_INSTANCES):
 # causing daemon threads to be killed before they complete their tasks
 for t in threads:
     t.join()
+"""
