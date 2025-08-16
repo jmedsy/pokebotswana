@@ -26,3 +26,7 @@ STATE_MANAGER = TEMP_DIR / CONFIG["runtime"]["state_manager"]
 
 """Input"""
 DEFAULT_PUSH_TIME = CONFIG["input"]["default_push_time"]
+
+"""Audio"""
+AUDIO_DIR = REPO_ROOT / CONFIG["audio"]["audio_dir"]
+SUCCESS_AUDIO = AUDIO_DIR / CONFIG["audio"]["success"]

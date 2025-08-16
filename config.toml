@@ -24,3 +24,7 @@ input_display = "input_display.lua"
 [runtime]
 temp_directory = "temp"
 state_manager = "pkbt_app_state.json"
+
+[audio]
+audio_dir = "resources/audio"
+success = "success.wav"
