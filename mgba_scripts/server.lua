@@ -91,37 +91,33 @@ function ST_error(id, err)
 	ST_stop(id)
 end
 
+local _buf = ""  -- single-socket buffer
 function ST_received(id)
-	local sock = ST_sockets[id]
-	if not sock then return end
-	while true do
-		local p, err = sock:receive(1024)
-		if p then
-			console:log(ST_format(id, p:match("^(.-)%s*$")))
+    local sock = ST_sockets[id]
+    if not sock then return end
 
-			-- Added to mGBA official socket communication example to handle bitmask messages
-			-- and reset control character.
-			local messages = p:gmatch("[^\n]+")
-			for message in messages do
-				if PK_is_valid_key_state_bitmask_str(message) then
-					PK_handle_key_state_bitmask(message)
-				end
-				if PK_is_reset_cmd(message) then
-					PK_handle_reset()
-				end
-				if PK_is_screenshot_cmd(message) then
-					PK_handle_screenshot(message)
-				end
-			end
+    while true do
+        local chunk, err = sock:receive(1024)
+        if not chunk then
+            if err == socket.ERRORS.AGAIN then return end
+            console:error(ST_format(id, err, true)); ST_stop(id); return
+        end
 
-		else
-			if err ~= socket.ERRORS.AGAIN then
-				console:error(ST_format(id, err, true))
-				ST_stop(id)
-			end
-			return
-		end
-	end
+        _buf = _buf .. chunk
+        while true do
+            local line, rest = _buf:match("^(.-)\r?\n(.*)$")  -- CRLF or LF
+            if not line then break end
+            _buf = rest
+
+            if PK_is_valid_key_state_bitmask_str(line) then
+                PK_handle_key_state_bitmask(line)
+            elseif PK_is_reset_cmd(line) then
+                PK_handle_reset()
+            elseif PK_is_screenshot_cmd(line) then
+                PK_handle_screenshot(line)
+            end
+        end
+    end
 end
 
 function ST_accept()
