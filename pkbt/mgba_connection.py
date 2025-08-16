@@ -80,28 +80,40 @@ class MGBAConnection:
             return False
 
     def listen(self, callback: Optional[Callable]):
-        """Listen for messages from mGBA with ping and escape key handling"""
+        """Start listening for messages in a background thread (non-blocking)
+        
+        This method returns immediately and runs the listening loop in a separate thread.
+        Use stop_listening() to stop the background listening thread.
+        """
         if not self._connected or not self._socket:
             print("Not connected to mGBA")
-            return
+            return False
 
         self._on_message = callback
+        self._stop_listening = False
         
         # Start ping thread
         self._ping_thread = threading.Thread(target=self._ping_loop, daemon=True)
         self._ping_thread.start()
 
-        print("Connected! Press ESC to disconnect.")
+        # Start listening thread
+        self._listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
+        self._listen_thread.start()
         
+        print("Started listening in background thread")
+        return True
+
+    def stop_listening(self):
+        """Stop the background listening thread"""
+        self._stop_listening = True
+        if hasattr(self, '_listen_thread') and self._listen_thread and self._listen_thread.is_alive():
+            self._listen_thread.join(timeout=1.0)
+        print("Stopped background listening")
+
+    def _listen_loop(self):
+        """Background thread for listening to messages"""
         try:
-            while self._connected:
-                # Check for escape key
-                if msvcrt.kbhit():
-                    key = msvcrt.getch()
-                    if key == b'\x1b':  # ESC key
-                        print("ESC pressed - disconnecting...")
-                        break
-                
+            while self._connected and not getattr(self, '_stop_listening', False):
                 # Try to receive data with a short timeout
                 try:
                     self._socket.settimeout(0.1)  # 100ms timeout
@@ -118,8 +130,9 @@ class MGBAConnection:
                     print(f"Listen failed: {e}")
                     self._connected = False
                     break
-        finally:
-            self.disconnect()
+        except Exception as e:
+            print(f"Listen loop error: {e}")
+            self._connected = False
 
     def execute_event(self, key_event: KeyEvent):
         """Execute a key event"""
