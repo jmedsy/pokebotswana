@@ -1,0 +1,1 @@
+python -m pkbt.automation.scripts.hatch_shiny_gastly
