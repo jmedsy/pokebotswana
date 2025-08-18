@@ -1,7 +1,6 @@
 import socket
 import time
 import threading
-import msvcrt
 from typing import Optional, Callable
 from pkbt.input.key_event import KeyEvent
 from pkbt.input.key_event_type import KeyEventType
