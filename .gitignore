@@ -33,4 +33,4 @@ env/
 .env/
 
 # Platform-specific configuration
-# config.toml
+config.toml
