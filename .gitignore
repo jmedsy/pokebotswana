@@ -31,6 +31,3 @@ venv/
 env/
 .venv/
 .env/
-
-# Platform-specific configuration
-config.toml
