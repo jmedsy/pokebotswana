@@ -19,6 +19,12 @@ class Orchestrator:
         except Exception as e:
             print(f"Error exiting orchestrator: {e}")
 
+    def is_healthy(self) -> bool:
+        """Check if both the emulator process and client connection are healthy."""
+        emulator_alive = self.emu.is_alive()
+        client_connected = self.client.connected
+        return emulator_alive and client_connected
+
 if __name__ == "__main__":
 
     from pkbt.mgba_connection import MGBAConnection

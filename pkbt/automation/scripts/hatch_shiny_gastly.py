@@ -32,11 +32,13 @@ SHINY_STAR_HEX = "#ffd652"
 """Shared thread-safe variables"""
 runs = 0
 found_shiny = False
+kill_all_threads = False
 
 """The task that will be performed by each orchestrator"""
 def task(o: Orchestrator, idx: int):
     global runs
     global found_shiny
+    global kill_all_threads
 
     o.client.connect()
 
@@ -162,7 +164,13 @@ def task(o: Orchestrator, idx: int):
         time.sleep(0.7)
 
     # Main loop
-    while found_shiny == False:
+    while found_shiny == False and kill_all_threads == False:
+
+        if not o.is_healthy():
+            print(f"Orchestrator for port {idx} is unhealthy, likely affects all timing, killing all threads")
+            kill_all_threads = True
+            break
+
         runs += 1
         if o.client._port == 8888:
             print(f"Runs: {runs}")

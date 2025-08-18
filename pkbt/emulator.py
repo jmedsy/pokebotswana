@@ -31,6 +31,14 @@ class EmulatorProc:
         """Stops the emulator."""
         self.process.terminate()
 
+    def is_alive(self) -> bool:
+        """Check if the emulator process is still running."""
+        if not hasattr(self, 'process') or self.process is None:
+            return False
+        
+        # Check if process is still running
+        return self.process.poll() is None
+
 
 """For testing purposes, we can run the module directly to start and stop the emulator."""
 

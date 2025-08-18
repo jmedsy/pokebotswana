@@ -23,6 +23,16 @@ class MGBAConnection:
         self._ping_thread: Optional[threading.Thread] = None
         self._stop_ping: bool = False
 
+    @property
+    def port(self) -> int:
+        """Get the port number (read-only)"""
+        return self._port
+
+    @property
+    def connected(self) -> bool:
+        """Check if the client is connected (read-only)"""
+        return self._connected
+
     def connect(self) -> bool:
         """Connect to the MGBA server (see socket_server.lua)"""
         try:
@@ -46,7 +56,7 @@ class MGBAConnection:
             self._socket.close()
             self._socket = None
         self._connected = False
-        print("Disconnected from MGBA")
+        print(f"Disconnected from MGBA on {self._host}:{self._port}")
 
     def ping(self):
         """Send a ping to keep the connection alive"""

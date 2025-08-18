@@ -1,3 +1,7 @@
+import os
+# Suppress pygame welcome message
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+
 import pygame
 import time
 from pkbt.config import SUCCESS_AUDIO
