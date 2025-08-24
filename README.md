@@ -55,9 +55,9 @@ This may not be necessary if you follow my advised project structure in Step 1.
 
 ### 5. Automate!
 
-## FAQ
-
 I've included a script `hatch_shiny_eevee` that I've been using successfully for a while to hatch several thousand eggs per day with 15 simultaneous mGBA instances running in fast-forward mode. Because the bot works based on actual time (not frames), you'll almost certainly have to tweak its timing based on the number of instances and your computer's speed.
+
+## FAQ
 
 ### Why design this time-based rather than frames-based? Why use screenshots at all, if we're using an emulator (and conceivably have access to game data directly)?
 
