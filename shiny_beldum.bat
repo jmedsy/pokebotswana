@@ -1,1 +1,0 @@
-python -m pkbt.automation.scripts.shiny_beldum
