@@ -1,1 +1,0 @@
-python -m pkbt.testing.two_instances
