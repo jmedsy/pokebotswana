@@ -96,10 +96,10 @@ def task(o: Orchestrator, idx: int):
         time.sleep(0.7)
         for _ in range(250):
             o.client.execute_event(KeyEvent(KeyEventType.HOLD, KeyType.LEFT))
-            time.sleep(0.3)
+            time.sleep(0.5)
             o.client.execute_event(KeyEvent(KeyEventType.RELEASE, KeyType.LEFT))
             o.client.execute_event(KeyEvent(KeyEventType.HOLD, KeyType.RIGHT))
-            time.sleep(0.3)
+            time.sleep(0.5)
             o.client.execute_event(KeyEvent(KeyEventType.RELEASE, KeyType.RIGHT))
 
     def go_through_hatching_sequences():
