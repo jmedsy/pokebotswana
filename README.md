@@ -1,6 +1,15 @@
 # PokeBotswana
 
-An automation framework for mGBA. Instructions to and feedback from the emulator are handled through its [official scripting API](https://mgba.io/docs/scripting.html) (using Lua), while client automation and TCP socket communication are written in Python.
+[Jump to Quick Start](#quick-start)
+
+A multithreaded automation framework for mGBA. Instructions to and feedback from the emulator are handled through its [official scripting API](https://mgba.io/docs/scripting.html) (using Lua), while client automation and TCP socket communication are written in Python. No building required, just a copy of the official development build.
+
+You may create dynamic, automated scripts for multiple independent mGBA instances simultaneously which include:
+* Pressing buttons, holding/releasing buttons
+* Soft-resetting the emulator instance
+* Taking instance screenshots
+* Checking color of specific pixels
+* Playing sounds under certain conditions
 
 ## Overview
 
@@ -14,166 +23,48 @@ Note: although nondevelopment builds <i>do</i> seem to have the UI option for Lu
 
 ```
 pokebotswana/
-├── mgba_scripting/
-│   ├── client/          
-|   |   ├── ...          
-│   │   └── mgba_connection.py # Socket connection manager
-│   └── server/                
-│   │   └── socket_server.lua  # Manages mGBA I/O, actually run by mGBA
-└── tools/
-    └── save_manager/          # Save file management utilities (ignore, personal use)
+├── mgba_scripts/              # Lua scripts used with mGBA API
+├── pkbt/                      # Python client
+├── resources/
+│    └── audio/          # Used for "Success" sound alert, if you want it.
+└── tools/                     # Ignore, used to manage saves for convenience
 ```
 
 ## Quick Start
 
 ### 1. Setup mGBA
 
-1. Download a [deveopment build of mGBA](https://mgba.io/downloads.html#development-downloads) (strongly recommended) or [compile your own](https://mgba.io/downloads.html#development-downloads) (may be necessary for features like headless-state).
-2. Load your GBA ROM in mGBA
-3. Enable Lua scripting in mGBA settings
+1. Download a [development build of mGBA](https://mgba.io/downloads.html#development-downloads) (strongly recommended) or compile your own.
+2. I recommend creating `mgba_dev/` in the repo root which contains your dev build (namely the executable).
 
-### 2. Start the Lua Server
+### 2. Get Pokemon
 
-1. Copy `mgba_scripting/input/socket_server.lua` to your mGBA scripts directory
-2. Load the script in mGBA
-3. The server will start listening on port 8888 (or next available port)
+No Pokemon roms are included, but I'm sure you can manage. I would keep them (and their saves) in `<repo-root>/roms/`.
 
-### 3. Connect with Python
+Disclaimer for Emerald: unlike other gen 3 titles, Emerald soft resets to the same RNG seed every time, regardless of the save clock. For this reason, I would avoid using it unless you are deliberately manipulating its RNG, or implementing measures (like waiting a variable amount of time between repeated actions) to ensure randomness when doing brute-force things like soft-resetting for shiny hunts. I mostly use Fire Red or Sapphire and bypass this.
 
-```python
-from mgba_scripting.client.mgba_connection import MGBAConnection
-from mgba_scripting.client.key_state import KeyManager
+### 3. Update `config.toml` with correct ROM and executable paths
 
-# Connect to mGBA
-with MGBAConnection() as conn:
-    # Create key manager
-    key_mgr = KeyManager()
-    
-    # Press A button
-    key_mgr.press_a()
-    
-    # Send key states to mGBA
-    conn.send(key_mgr.serialize())
-    
-    # Listen for responses
-    conn.listen()
-```
+This may not be necessary if you follow my advised project structure in Step 1.
 
-## Key Components
+### 4. Run extremely simple demo
 
-### KeyManager
+1. In command prompt (Windows) or terminal (MacOS, Linux), navigate to repo root.
+2. Start the Windows demo with `run.bat -m pkbt.automation.demos.single_start_demo`, or the MacOS/Linux demo with `./run.sh -m pkbt.automation.demos.single_start_demo`
+3. A pair of mGBA game/scripting windows will open and a few A presses will be performed.
 
-Manages button states and serializes them for transmission:
+### 5. Automate!
 
-```python
-from mgba_scripting.client.key_state import KeyManager
+## FAQ
 
-key_mgr = KeyManager()
-key_mgr.press_a()
-key_mgr.press_b()
-key_mgr.release_a()
+I've included a script `hatch_shiny_eevee` that I've been using successfully for a while to hatch several thousand eggs per day with 15 simultaneous mGBA instances running in fast-forward mode. Because the bot works based on actual time (not frames), you'll almost certainly have to tweak its timing based on the number of instances and your computer's speed.
 
-# Serialize to binary string (e.g., "1010000000")
-binary_string = key_mgr.serialize()
-```
+### Why design this time-based rather than frames-based? Why use screenshots at all, if we're using an emulator (and conceivably have access to game data directly)?
 
-### MGBAConnection
+This is intended to be kind of a proof-of-concept for automating using legitimate, current-gen hardware. I will be working on generalizing these features to accommodate a video capture card and third-party Nintendo Switch controller.
 
-Handles socket communication with mGBA:
+### Is it possible to move these Pokemon into the current Pokemon generation by "legitimate" means?
 
-```python
-from mgba_scripting.client.mgba_connection import MGBAConnection
+Absolutely. It's a bit convoluted, and people have made tools for shortcuts, but if you wanted to be "legitimate"...
 
-with MGBAConnection(host="localhost", port=8888) as conn:
-    conn.send("1010000000")  # Send key states
-    conn.listen()  # Listen for responses
-```
-
-### KeyEvent
-
-Represents individual key press/release events:
-
-```python
-from mgba_scripting.client.key_event import KeyEvent
-from mgba_scripting.client.key_type import KeyType
-from mgba_scripting.client.key_event_type import KeyEventType
-
-# Create a press event
-event = KeyEvent(KeyEventType.PRESS, KeyType.A)
-```
-
-## Communication Protocol
-
-### Key State Format
-
-Key states are transmitted as binary strings where each position represents a button:
-
-```
-Position: 0123456789
-Buttons:  ABsS<>^vRL
-Example:  1010000000  # A pressed, others not pressed
-```
-
-### Socket Communication
-
-- **Protocol**: TCP
-- **Default Port**: 8888
-- **Data Format**: Binary strings (10 characters for 10 buttons)
-- **Encoding**: UTF-8
-
-## Development
-
-### Running Tests
-
-```bash
-cd mgba_scripting/client
-python test_socket.py
-```
-
-### Adding New Keys
-
-1. Update `key_type.py` with new key definitions
-2. Update the Lua server's `KEY_NAMES` table
-3. Ensure both sides use the same key order
-
-### Extending Functionality
-
-The modular design makes it easy to add new features:
-
-- **New Event Types**: Add to `key_event_type.py`
-- **New Communication Protocols**: Extend `mgba_connection.py`
-- **New Key Types**: Add to `key_type.py`
-
-## Requirements
-
-- Python 3.7+
-- mGBA emulator
-- Network connectivity (localhost)
-
-## License
-
-This project is for educational and automation purposes. Ensure you own the ROMs you're automating.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## Troubleshooting
-
-### Connection Issues
-- Ensure mGBA is running with the Lua script loaded
-- Check that port 8888 is not in use
-- Verify firewall settings
-
-### Key State Issues
-- Ensure key order matches between Python and Lua
-- Check that binary string length is exactly 10 characters
-- Verify key state serialization format
-
-### Performance Issues
-- Consider using integer format instead of binary strings for better performance
-- Implement connection pooling for high-frequency operations 
+Using just the [melonDS](https://melonds.kuribo64.net/) emulator, you can migrate from gen 3 into gen 4 (e.g. Soul Silver). Then, you can trade to a gen 5 rom. After that, using the Delta iPhone emulator, you can establish a wireless trade with a 3DS running a gen 5 game. From there, (provided you have a gen 6 save file on your 3DS) you can use Pokemon Bank to transfer to Pokemon Home.
