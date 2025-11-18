@@ -2,7 +2,7 @@
 
 [Jump to Quick Start](#quick-start)
 
-A multithreaded automation framework for mGBA. Instructions to and feedback from the emulator are handled through its [official scripting API](https://mgba.io/docs/scripting.html) (using Lua), while client automation and TCP socket communication are written in Python. No building required, just a copy of the official development build.
+Instructions to and feedback from the emulator are handled through its [official scripting API](https://mgba.io/docs/scripting.html) (using Lua), while client automation and TCP socket communication are written in Python. No building required, just a copy of the official development build.
 
 You may create dynamic, automated scripts for multiple independent mGBA instances simultaneously which include:
 * Pressing buttons, holding/releasing buttons
