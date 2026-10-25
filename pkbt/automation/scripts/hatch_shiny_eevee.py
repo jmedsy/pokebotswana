@@ -1,22 +1,21 @@
-"""Requirements
-
-    - Player is standing directly adjacent to Beldum pokeball, facing it.
+""" Notes on the setup:
+    - Daycare man already has an Eevee egg in his possession.
+    - Player is standing directly west of the daycare man, facing him.
     - Player has only one pokemon in their party.
-    - User sets all mGBA instances to unbounded fast-forward mode (Shift+Tab)
+    - User manually sets all mGBA instances to unbounded fast-forward mode (Shift+Tab) before automation starts.
+    - mGBA frame skip is set to 10.
+    - mGBA frame advance speed is set to 5x.
 """
 
 from pkbt.config import POKEMON_RED_ROM
-from pkbt.orchestrator import Orchestrator
 from pkbt.input.key_event import KeyEventType
 from pkbt.input.key_type import KeyType
 from pkbt.input.key_event import KeyEvent
 from pkbt.state_manager import initialize_state_manager
-from pkbt.emulator import EmulatorProc
-from pkbt.mgba_connection import MGBAConnection
-from pkbt.config import MGBA_DEV, SERVER_SCRIPT, TEMP_DIR
-from pkbt.windowing import Window, arrange_windows_auto_grid, minimize_windows_starting_with, get_primary_screen_width
-from pkbt.image_processing import pixel_hex, save_with_crosshair
+from pkbt.config import TEMP_DIR
+from pkbt.image_processing import pixel_hex
 from pkbt.audio import play_success
+from pkbt.instances import InstanceGroup, InstanceSlot
 import time
 import threading
 import random
@@ -25,51 +24,34 @@ import random
 STARTING_PORT = 8888 # Leave me alone
 
 """Tweak as desired"""
-NUM_INSTANCES = 15
+NUM_INSTANCES =12
 CROSSHAIR = (105, 38)
 SHINY_STAR_HEX = "#ffd652"
 
 """Shared thread-safe variables"""
 runs = 0
-found_shiny = False
-kill_all_threads = False
+runs_lock = threading.Lock()
 
-"""The task that will be performed by each orchestrator"""
-def task(o: Orchestrator, idx: int):
+def attempt(slot: InstanceSlot):
+    o = slot.orch
+    idx = slot.idx
     global runs
-    global found_shiny
-    global kill_all_threads
-
-    o.client.connect()
 
     def start_game():
-        # Reset the game and load save file
+        slot.abort_if_frozen()
+        # The seed is the time from reset until the A press leaves PRESS START.
+        # That press can hit 1024 seeds, one per frame for about 17s of game
+        # time. The spread below is that long at roughly 10x fast-forward.
+        # PRESS START restarts the intro after about 45s of game time.
         o.client.reset_game()
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-
-    def offset_clock():
-        time.sleep((o.client._port - 8888) * 0.25)
-
-    def add_jitter():
-        time.sleep(random.uniform(0, 1))
+        time.sleep(random.uniform(0.7, 2.5))
+        for _ in range(8):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
+            time.sleep(0.7)
+        time.sleep(2)
 
     def pick_up_egg():
+        slot.abort_if_frozen()
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
@@ -77,8 +59,6 @@ def task(o: Orchestrator, idx: int):
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(0.7)
@@ -90,11 +70,13 @@ def task(o: Orchestrator, idx: int):
         time.sleep(0.7)
 
     def hatch_egg():
+        slot.abort_if_frozen()
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
         time.sleep(0.3)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.SELECT))
         time.sleep(0.7)
         for _ in range(250):
+            slot.abort_if_frozen()
             o.client.execute_event(KeyEvent(KeyEventType.HOLD, KeyType.LEFT))
             time.sleep(0.5)
             o.client.execute_event(KeyEvent(KeyEventType.RELEASE, KeyType.LEFT))
@@ -103,16 +85,18 @@ def task(o: Orchestrator, idx: int):
             o.client.execute_event(KeyEvent(KeyEventType.RELEASE, KeyType.RIGHT))
 
     def go_through_hatching_sequences():
+        slot.abort_if_frozen()
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
+        time.sleep(2)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
+        time.sleep(2)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
+        time.sleep(2)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
+        time.sleep(2)
 
     def enter_summary():
+        slot.abort_if_frozen()
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.START))
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
@@ -127,6 +111,7 @@ def task(o: Orchestrator, idx: int):
         time.sleep(0.7)
 
     def save_screenshot():
+        slot.abort_if_frozen()
         o.client.save_screenshot_to_file(f"{idx}.png")
         time.sleep(1)
 
@@ -134,6 +119,7 @@ def task(o: Orchestrator, idx: int):
         return SHINY_STAR_HEX == pixel_hex(f"{TEMP_DIR}/{idx}.png", CROSSHAIR[0], CROSSHAIR[1])
 
     def save_game():
+        slot.abort_if_frozen()
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.B))
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.B))
@@ -153,69 +139,27 @@ def task(o: Orchestrator, idx: int):
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(0.7)
 
-    # Main loop
-    while found_shiny == False and kill_all_threads == False:
-
-        if not o.is_healthy():
-            print(f"Orchestrator for port {idx} is unhealthy, likely affects all timing, killing all threads")
-            kill_all_threads = True
-            break
-
+    start_game()
+    pick_up_egg()
+    hatch_egg()
+    go_through_hatching_sequences()
+    enter_summary()
+    save_screenshot()
+    with runs_lock:
         runs += 1
-        if o.client._port == 8888:
-            print(f"Runs: {runs}")
-        start_game()
-        offset_clock()
-        add_jitter()
-        pick_up_egg()
-        hatch_egg()
-        go_through_hatching_sequences()
-        enter_summary()
-        save_screenshot()
-        if shiny_star_is_visible():
-            found_shiny = True
-            print(f"Shiny found on {idx}")
-            o.client.save_screenshot_to_file(f"found-at-runs-{runs}.png")
-            play_success(blocking=True)
-            save_game()
-            break
+        current_runs = runs
+    if idx == 0:
+        print(f"Runs: {current_runs}")
+    if shiny_star_is_visible():
+        group.stop.set()
+        print(f"Shiny found on {idx}")
+        o.client.save_screenshot_to_file(f"found-at-runs-{current_runs}.png")
+        play_success(blocking=True)
+        save_game()
 
 """Putting it all together and running it"""
 initialize_state_manager()
-
-# Create the orchestrators
-orchestrators = []
-for i in range(NUM_INSTANCES):
-    orch = Orchestrator(
-        EmulatorProc(MGBA_DEV, POKEMON_RED_ROM, [SERVER_SCRIPT]),
-        MGBAConnection('localhost', STARTING_PORT + i))
-    orchestrators.append(orch)
-
-# Start the emulators
-emu_pids: list[int] = []
-for i in range(NUM_INSTANCES):
-    pid = orchestrators[i].perform_task(lambda e, c: e.process.pid if e.start() else None)
-    emu_pids.append(pid)
-    time.sleep(0.5)
-
-# Arrange the windows in a grid
-time.sleep(10)
-windows = [Window.from_pid(pid) for pid in emu_pids]
-# arrange_in_grid(windows, num_cols=3, num_rows=1)
-arrange_windows_auto_grid(windows, max_width=get_primary_screen_width())
-minimize_windows_starting_with("Scripting")
-
-# User is given time to set all mGBA instances to unbounded fast-forward mode
-time.sleep(10)
-
-# Start the tasks
-threads = []
-for i, orchestrator in enumerate(orchestrators):
-    t = threading.Thread(target=task, args=(orchestrator, i), daemon=True)
-    t.start()
-    threads.append(t)
-
-# Without this, the main program will exit immediately, 
-# causing daemon threads to be killed before they complete their tasks
-for t in threads:
-    t.join()
+group = InstanceGroup(NUM_INSTANCES, POKEMON_RED_ROM, starting_port=STARTING_PORT)
+# Time to Shift+Tab the original windows. Replacements toggle it themselves.
+group.start(ready_pause=12)
+group.run(attempt)

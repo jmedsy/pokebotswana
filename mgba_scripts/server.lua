@@ -9,8 +9,33 @@
 
 local state_manager = require("state_manager")
 -- state_manager.initialize_state()
-local instance = state_manager.create_instance()
-console:log("Created instance with port " .. instance.port .. " and timestamp " .. instance.timestamp)
+-- Python passes the port and slot. Falling back to the shared state file lets
+-- two windows swap ports, and the restart then kills the neighbor.
+local slot_id = os.getenv("PKBT_SLOT")
+local env_port = os.getenv("PKBT_PORT")
+local instance = nil
+if not env_port then
+	instance = state_manager.create_instance()
+	console:log("Created instance with port " .. instance.port .. " and timestamp " .. instance.timestamp)
+else
+	console:log("Using assigned port " .. env_port .. " for slot " .. tostring(slot_id))
+end
+
+-- Frame counter for the host, named by the slot that launched this process.
+local heartbeat_frame = 0
+local heartbeat_path = slot_id and ("temp/frame_slot_" .. slot_id .. ".txt") or ("temp/frame_" .. instance.port .. ".txt")
+callbacks:add("frame", function()
+	heartbeat_frame = heartbeat_frame + 1
+	if heartbeat_frame % 120 ~= 0 then
+		return
+	end
+	local f = io.open(heartbeat_path, "w")
+	if not f then
+		return
+	end
+	f:write(tostring(heartbeat_frame))
+	f:close()
+end)
 
 --[[ begin section Bitmask Utilities ]]
 local PK_KEY_STATE_CTRL_CHAR = "\x01"
@@ -135,13 +160,27 @@ function ST_accept()
 end
 
 --[[ begin Main loop ]]
-local port = instance.port
+local function wait_seconds(seconds)
+	local deadline = os.clock() + seconds
+	while os.clock() < deadline do end
+end
+
+local port = env_port and tonumber(env_port) or instance.port
+local fixed_port = env_port ~= nil
 server = nil
-while not server do
+local attempts = 0
+local max_attempts = fixed_port and 20 or 50
+while not server and attempts < max_attempts do
+	attempts = attempts + 1
 	server, err = socket.bind(nil, port)
 	if err then
-		if err == socket.ERRORS.ADDRESS_IN_USE then
+		if err == socket.ERRORS.ADDRESS_IN_USE and not fixed_port then
 			port = port + 1
+			server = nil
+		elseif err == socket.ERRORS.ADDRESS_IN_USE then
+			server = nil
+			console:log("Port " .. port .. " is still in use, retrying")
+			wait_seconds(0.25)
 		else
 			console:error(ST_format("Bind", err, true))
 			break
@@ -151,7 +190,9 @@ while not server do
 		ok, err = server:listen()
 		if err then
 			server:close()
+			server = nil
 			console:error(ST_format("Listen", err, true))
+			break
 		else
 			console:log("Socket Server Test: Listening on port " .. port)
 			server:add("received", ST_accept)

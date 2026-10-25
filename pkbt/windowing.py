@@ -1,5 +1,7 @@
 """Thin wrappers around Win32 window operations for Python (Windows only)."""
 
+import ctypes
+import threading
 import time
 from dataclasses import dataclass
 
@@ -11,6 +13,68 @@ except ImportError as e:
     ) from e
 
 # --- Internal ---
+
+def _is_hung(hwnd: int) -> bool:
+    return bool(ctypes.windll.user32.IsHungAppWindow(hwnd))
+
+def _within(seconds: float, fn, default=None):
+    """Run fn and return default if it is still blocked when the deadline passes.
+
+    SetForegroundWindow and SetWindowPos send a message to the target thread
+    and do not return while that thread is Not Responding. A caller that holds
+    the replacement lock would stall every other restart until the window is closed.
+    """
+    outcome: dict = {}
+
+    def run():
+        try:
+            outcome["value"] = fn()
+        except Exception as exc:
+            outcome["error"] = exc
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(seconds)
+    if thread.is_alive():
+        return default
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome.get("value", default)
+
+def _show_async(hwnd: int, command: int) -> None:
+    """Show, restore, or minimize without waiting on a window that is not responding."""
+    ctypes.windll.user32.ShowWindowAsync(hwnd, command)
+
+def _window_text(hwnd: int, timeout_ms: int = 200) -> str:
+    """Read a window title without blocking if that window is not responding."""
+    if _is_hung(hwnd):
+        return ""
+    buffer = ctypes.create_unicode_buffer(512)
+    result = ctypes.c_size_t()
+    send = ctypes.windll.user32.SendMessageTimeoutW
+    send.argtypes = [
+        ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_wchar_p,
+        ctypes.c_uint, ctypes.c_uint, ctypes.POINTER(ctypes.c_size_t),
+    ]
+    send.restype = ctypes.c_void_p
+    ok = send(hwnd, 0x000D, 512, buffer, 0x0002, timeout_ms, ctypes.byref(result))
+    if not ok:
+        return ""
+    return buffer.value
+
+def hung_window_pids() -> set[int]:
+    """PIDs that own a visible window Windows has marked not responding."""
+    found: set[int] = set()
+
+    def cb(hwnd, _):
+        if not win32gui.IsWindowVisible(hwnd) or not _is_hung(hwnd):
+            return
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        if pid:
+            found.add(pid)
+
+    win32gui.EnumWindows(cb, None)
+    return found
 
 def _top_window_from_pid(pid: int, timeout: float = 10.0) -> int:
     """Return the top-level window handle for a given PID, waiting up to timeout."""
@@ -24,8 +88,8 @@ def _top_window_from_pid(pid: int, timeout: float = 10.0) -> int:
                 return
             _, wpid = win32process.GetWindowThreadProcessId(hwnd)
             if wpid == pid and win32gui.GetWindow(hwnd, win32con.GW_OWNER) == 0:
-                title = win32gui.GetWindowText(hwnd)
-                # Only include windows that start with "mGBA"
+                # GetWindowText sends a message and never returns if the window is hung.
+                title = _window_text(hwnd)
                 if title.startswith("mGBA"):
                     found.append(hwnd)
 
@@ -41,8 +105,14 @@ def _top_window_from_pid(pid: int, timeout: float = 10.0) -> int:
 
 def get_rect(hwnd: int) -> tuple[int, int, int, int]:
     """Return (x, y, width, height) for the given window handle."""
-    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-    return left, top, right - left, bottom - top
+    def read() -> tuple[int, int, int, int]:
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        return left, top, right - left, bottom - top
+
+    rect = _within(1.0, read, None)
+    if rect is None:
+        raise TimeoutError(f"Timed out reading the rect of window {hwnd}")
+    return rect
 
 def get_size(hwnd: int) -> tuple[int, int]:
     """Return (width, height) for the given window handle."""
@@ -62,21 +132,93 @@ def get_position(hwnd: int) -> tuple[int, int]:
     left, top, _, _ = get_rect(hwnd)
     return left, top
 
+def _set_window_pos(hwnd: int, x: int, y: int, w: int, h: int, flags: int) -> None:
+    def place() -> bool:
+        win32gui.SetWindowPos(hwnd, None, x, y, w, h, flags)
+        return True
+
+    if not _within(2.0, place, False):
+        raise TimeoutError(f"Timed out moving window {hwnd}")
+
 def move(hwnd: int, x: int, y: int) -> None:
     """Move the window to (x, y) without resizing."""
-    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-    win32gui.SetWindowPos(
-        hwnd, None, x, y, 0, 0,
-        win32con.SWP_NOSIZE | win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE
-    )
+    _show_async(hwnd, win32con.SW_RESTORE)
+    _set_window_pos(hwnd, x, y, 0, 0, win32con.SWP_NOSIZE | win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE)
 
 def move_resize(hwnd: int, x: int, y: int, w: int, h: int) -> None:
     """Move and resize the window."""
-    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-    win32gui.SetWindowPos(
-        hwnd, None, x, y, w, h,
-        win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE
-    )
+    _show_async(hwnd, win32con.SW_RESTORE)
+    _set_window_pos(hwnd, x, y, w, h, win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE)
+
+def _focus_blocking(hwnd: int) -> bool:
+    """Bring hwnd to the foreground. Windows blocks this from a background process unless the threads are attached."""
+    foreground = win32gui.GetForegroundWindow()
+    current_thread = win32api.GetCurrentThreadId()
+    foreground_thread, _ = win32process.GetWindowThreadProcessId(foreground)
+    target_thread, _ = win32process.GetWindowThreadProcessId(hwnd)
+    attached_foreground = False
+    attached_target = False
+    try:
+        if foreground_thread and foreground_thread != current_thread:
+            attached_foreground = bool(win32process.AttachThreadInput(current_thread, foreground_thread, True))
+        if target_thread and target_thread != current_thread:
+            attached_target = bool(win32process.AttachThreadInput(current_thread, target_thread, True))
+        _show_async(hwnd, win32con.SW_SHOW)
+        win32gui.SetForegroundWindow(hwnd)
+        win32gui.BringWindowToTop(hwnd)
+    finally:
+        if attached_target:
+            win32process.AttachThreadInput(current_thread, target_thread, False)
+        if attached_foreground:
+            win32process.AttachThreadInput(current_thread, foreground_thread, False)
+    return win32gui.GetForegroundWindow() == hwnd
+
+def _focus(hwnd: int) -> bool:
+    """Focus hwnd, giving up instead of waiting on a Not Responding window."""
+    if not win32gui.IsWindow(hwnd) or _is_hung(hwnd):
+        return False
+    foreground = win32gui.GetForegroundWindow()
+    # Attaching to the foreground thread blocks until that window is closed
+    # when its message loop has stopped.
+    if foreground and foreground != hwnd and _is_hung(foreground):
+        return False
+    return bool(_within(2.0, lambda: _focus_blocking(hwnd), False))
+
+def _try_foreground(hwnd: int) -> bool:
+    if not win32gui.IsWindow(hwnd) or _is_hung(hwnd):
+        return False
+
+    def focus() -> bool:
+        win32gui.SetForegroundWindow(hwnd)
+        return True
+
+    return bool(_within(2.0, focus, False))
+
+def toggle_fast_forward(hwnd: int) -> bool:
+    """Press Shift+Tab on hwnd, mGBA's fast-forward toggle. The key is only sent if that window is in front."""
+    if not win32gui.IsWindow(hwnd) or _is_hung(hwnd):
+        return False
+    previous = win32gui.GetForegroundWindow()
+    if not _focus(hwnd):
+        # A tap of Alt lets a background process take the foreground.
+        win32api.keybd_event(win32con.VK_MENU, 0, 0, 0)
+        win32api.keybd_event(win32con.VK_MENU, 0, win32con.KEYEVENTF_KEYUP, 0)
+        if not _try_foreground(hwnd):
+            return False
+    deadline = time.time() + 1.0
+    while win32gui.GetForegroundWindow() != hwnd and time.time() < deadline:
+        time.sleep(0.05)
+    if win32gui.GetForegroundWindow() != hwnd:
+        return False
+    win32api.keybd_event(win32con.VK_SHIFT, 0, 0, 0)
+    win32api.keybd_event(win32con.VK_TAB, 0, 0, 0)
+    time.sleep(0.05)
+    win32api.keybd_event(win32con.VK_TAB, 0, win32con.KEYEVENTF_KEYUP, 0)
+    win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_KEYUP, 0)
+    time.sleep(0.1)
+    if previous and previous != hwnd and win32gui.IsWindow(previous) and not _is_hung(previous):
+        _try_foreground(previous)
+    return True
 
 def get_primary_screen_size() -> tuple[int, int]:
     """Width, height of the primary display in pixels."""
@@ -93,12 +235,14 @@ def get_primary_screen_height() -> int:
 def minimize_windows_starting_with(prefix: str) -> None:
     """Minimize all visible windows that start with the given prefix."""
     def cb(hwnd, _):
-        if not win32gui.IsWindowVisible(hwnd):
+        if not win32gui.IsWindowVisible(hwnd) or _is_hung(hwnd):
             return
-        title = win32gui.GetWindowText(hwnd)
+        title = _window_text(hwnd)
         if title.startswith(prefix):
-            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
-    
+            # ShowWindow waits on the target thread. A Not Responding
+            # Scripting console would stall every later replacement.
+            _show_async(hwnd, win32con.SW_MINIMIZE)
+
     win32gui.EnumWindows(cb, None)
 
 def arrange_in_grid(windows: list["Window"], num_cols: int, num_rows: int) -> None:
@@ -160,3 +304,6 @@ class Window:
 
     def move_resize(self, x: int, y: int, w: int, h: int) -> None:
         move_resize(self.hwnd, x, y, w, h)
+
+    def toggle_fast_forward(self) -> bool:
+        return toggle_fast_forward(self.hwnd)
