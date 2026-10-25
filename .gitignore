@@ -25,9 +25,11 @@ mgba_dev/
 
 # PKBT session data generated at runtime
 temp/
+logs/
 
 # Virtual environments
 venv/
+venv312/
 env/
 .venv/
 .env/

@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 
 class EmulatorProc:
@@ -8,17 +9,20 @@ class EmulatorProc:
         self.rom = rom
         self.scripts = scripts
 
-    def start(self) -> bool:
+    def start(self, extra_env: dict[str, str] | None = None) -> bool:
         """Starts the emulator with (optionally) the given scripts."""
         scripting_args = []
         for s in self.scripts or []:
             scripting_args.extend(["--script", str(s)])
 
+        env = os.environ.copy()
+        if extra_env:
+            env.update(extra_env)
         p = subprocess.Popen([
             str(self.exe),
             *scripting_args,
             str(self.rom)
-        ])
+        ], env=env)
 
         if p is None:
             print("Failed to start emulator")

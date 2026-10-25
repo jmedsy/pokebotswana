@@ -10,5 +10,6 @@ else
     source venv/bin/activate
 fi
 
-# Run the command
-python "$@"
+# Run the command. Output is also written to a new file in logs/.
+export PYTHONUNBUFFERED=1
+python -m pkbt.run_logged "$@"
