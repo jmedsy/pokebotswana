@@ -161,7 +161,7 @@ class InstanceGroup:
                 )
             )
 
-    def start(self, ready_pause: float = 0) -> None:
+    def start(self, ready_pause: float = 0, fast_forward: bool = False) -> None:
         """Launch every emulator, tile the windows, and hide the Scripting consoles."""
         print(f"Creating {len(self.slots)} orchestrators...", end="")
         print("done")
@@ -182,6 +182,15 @@ class InstanceGroup:
             slot.rect = window.rect()
         minimize_windows_starting_with("Scripting")
         print("done")
+        if fast_forward:
+            for slot, window in zip(self.slots, windows):
+                try:
+                    if window.toggle_fast_forward():
+                        print(f"[{slot.idx}] Toggled fast-forward")
+                    else:
+                        print(f"[{slot.idx}] Could not focus the window to toggle fast-forward")
+                except Exception as e:
+                    print(f"[{slot.idx}] Could not toggle fast-forward: {e}")
         if ready_pause:
             time.sleep(ready_pause)
 
