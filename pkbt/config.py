@@ -15,6 +15,10 @@ INPUT_DISPLAY_SCRIPT = SCRIPTS_DIR / CONFIG["scripts"]["input_display"]
 """mGBA Emulator"""
 MGBA_DEV = CONFIG["emulator"]["mgba_dev"]
 
+"""OCR"""
+TESSERACT = CONFIG["ocr"]["tesseract"]
+TESSDATA_DIR = REPO_ROOT / CONFIG["ocr"]["tessdata"]
+
 """ROMS"""
 POKEMON_RED_ROM = REPO_ROOT / CONFIG["roms"]["pokemon_red"]
 POKEMON_SAPPHIRE_ROM = REPO_ROOT / CONFIG["roms"]["pokemon_sapphire"]
