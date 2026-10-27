@@ -1,3 +1,6 @@
+import time
+from pathlib import Path
+
 from PIL import Image, ImageDraw
 
 def pixel_rgb(path, x, y):
@@ -7,6 +10,46 @@ def pixel_rgb(path, x, y):
 def pixel_hex(path, x, y):
     r, g, b = pixel_rgb(path, x, y)
     return f"#{r:02x}{g:02x}{b:02x}"
+
+def dialogue_arrow_is_visible(path, take_screenshot=None, timeout=2.0) -> bool:
+    """True when the red continue arrow is showing in the message box.
+
+    The arrow stays on one row. Its horizontal position follows the text, so
+    the row is scanned from x=10 through x=230.
+
+    Pass take_screenshot to wait for a new capture. Without it, path is read as it is.
+    """
+    dialogue_arrow_y = 127
+    dialogue_arrow_x_start = 10
+    dialogue_arrow_x_end = 230
+    dialogue_arrow_rgb = (255, 0, 0)
+    if take_screenshot is not None:
+        pixel_hex_when_ready(path, dialogue_arrow_x_start, dialogue_arrow_y, take_screenshot, timeout)
+    im = Image.open(path).convert("RGB")
+    for x in range(dialogue_arrow_x_start, dialogue_arrow_x_end + 1):
+        if im.getpixel((x, dialogue_arrow_y)) == dialogue_arrow_rgb:
+            return True
+    return False
+
+def pixel_hex_when_ready(path, x, y, take_screenshot, timeout=2.0):
+    """Take a new screenshot, then read one pixel from it.
+
+    take_screenshot only has to request the file. The PNG already at path is
+    removed first, and this waits until a readable image replaces it.
+    """
+    path = Path(path)
+    try:
+        path.unlink()
+    except OSError:
+        pass
+    take_screenshot()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            return pixel_hex(path, x, y)
+        except (OSError, ValueError):
+            time.sleep(0.05)
+    raise TimeoutError(f"Screenshot {path.name} was not saved")
 
 def save_with_crosshair(src_path, out_path, x, y):
     # Load image as RGB
