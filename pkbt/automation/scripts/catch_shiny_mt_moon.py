@@ -23,7 +23,9 @@ BATTLE_SCREEN_DIALOGUE_BG_HEX = "#29526b"
 BATTLE_SCREEN_CAUGHT_BG_CROSSHAIR = (220, 130)
 BATTLE_SCREEN_CAUGHT_BG_HEX = "#29526b"
 
-EXCLUDED_POKEMON = []
+EXCLUDED_POKEMON = ["ZUBAT"]
+# The number of shiny pokemon to catch before the bot stops
+CATCH_LIMIT = 4
 
 """Shared thread-safe variables"""
 encounter_counts = {
@@ -33,7 +35,8 @@ encounter_counts = {
     "PARAS": 0,
 }
 runs_lock = threading.Lock()
-stop_all = False
+pause_all = False
+catch_count = 0
 
 def for_console(value) -> str:
     """The Windows console encoding cannot print the male or female sign."""
@@ -43,7 +46,8 @@ def attempt(slot: InstanceSlot):
     o = slot.orch
     idx = slot.idx
     global encounter_counts
-    global stop_all
+    global pause_all
+    global catch_count
 
     def start_game():
         slot.abort_if_frozen()
@@ -283,8 +287,8 @@ def attempt(slot: InstanceSlot):
 
     start_game()
     set_initial_menu_cursor_position()
-    equip_bike()
-    while not stop_all:
+    # equip_bike()
+    while not group.stop.is_set():
         brief_zigzag()
         if entered_battle():
             while not dialogue_arrow_is_visible_on_screen():
@@ -298,7 +302,7 @@ def attempt(slot: InstanceSlot):
             if is_shiny_of_species(pokemon_name) and pokemon_name not in EXCLUDED_POKEMON:
                 shown_name = for_console(pokemon_name)
                 print(f"Shiny {shown_name} found on {idx} after {get_total_encounter_count()} total encounters and {encounter_counts[pokemon_name]} {shown_name} encounters")
-                stop_all = True
+                pause_all = True
                 use_mean_look()
                 throw_first_ultra_ball()
                 while not is_caught():
@@ -307,12 +311,26 @@ def attempt(slot: InstanceSlot):
                 attempt_pokemon_heal()
                 save_game()
                 play_success(blocking=True)
-                group.stop.set()
-                break
+                catch_count += 1
+                if catch_count >= CATCH_LIMIT:
+                    group.kill()
+                    break
+                time.sleep(2)
+                pause_all = False
+                start_game()
+                set_initial_menu_cursor_position()
             else:
                 run_away_from_battle()
         else:
             continue
+
+        while pause_all and not group.stop.is_set():
+            time.sleep(5)
+            if not pause_all:
+                start_game()
+                set_initial_menu_cursor_position()
+                # equip_bike()
+                break
 
 """Putting it all together and running it"""
 initialize_state_manager()
