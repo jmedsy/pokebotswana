@@ -19,6 +19,8 @@ MIN_HEIGHT = 200
 BATTLE_TEXT_BOX = (10, 121, 118, 151)
 # The wide box used by "Wild X appeared!" before the command menu opens.
 FULL_DIALOGUE_BOX = (10, 121, 230, 151)
+# Status text on the player's battle panel, inside the frame.
+PLAYER_PKMN_STATUS_BOX = (142, 96, 162, 107)
 
 
 def read_text(source, box: tuple[int, int, int, int]) -> str:

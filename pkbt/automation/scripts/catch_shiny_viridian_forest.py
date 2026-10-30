@@ -1,5 +1,3 @@
-# Remove filter in wild_pokemon_is_shiny() to allow other shinies through
-
 from pkbt.config import POKEMON_RED_ROM
 from pkbt.input.key_event import KeyEventType
 from pkbt.input.key_type import KeyType
@@ -7,7 +5,7 @@ from pkbt.input.key_event import KeyEvent
 from pkbt.state_manager import initialize_state_manager
 from pkbt.config import TEMP_DIR
 from pkbt.image_processing import pixel_hex_when_ready, dialogue_arrow_is_visible
-from pkbt.text import FULL_DIALOGUE_BOX, read_text
+from pkbt.text import FULL_DIALOGUE_BOX, PLAYER_PKMN_STATUS_BOX, read_text
 from pkbt.audio import play_success
 from pkbt.instances import InstanceGroup, InstanceSlot
 import time
@@ -34,6 +32,7 @@ NON_SHINY_METAPOD_HEX = "#9cd64a"
 
 """Shared thread-safe variables"""
 runs = 0
+pikachu_runs = 0
 runs_lock = threading.Lock()
 stop_all = False
 
@@ -41,6 +40,7 @@ def attempt(slot: InstanceSlot):
     o = slot.orch
     idx = slot.idx
     global runs
+    global pikachu_runs
     global stop_all
 
     def start_game():
@@ -55,6 +55,43 @@ def attempt(slot: InstanceSlot):
             o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
             time.sleep(0.7)
         time.sleep(2)
+
+    def set_initial_menu_cursor_position():
+        slot.abort_if_frozen()
+        # Open the BAG menu
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.START))
+        time.sleep(0.2)
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
+        time.sleep(0.2)
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
+        time.sleep(0.2)
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
+        time.sleep(0.2)
+        # Move To FULL HEAL
+        for _ in range(4):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
+            time.sleep(0.2)
+        # Move to POKE BALLS
+        for _ in range(2):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.RIGHT))
+            time.sleep(0.2)
+        # Move to ULTRA BALL
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
+        time.sleep(0.2)
+        # Return to ITEMS tab
+        for _ in range(2):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.LEFT))
+            time.sleep(0.2)
+        # Return to main menu
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.B))
+        time.sleep(0.2)
+        # Move Cursor back to POKEDEX
+        for _ in range(2):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.UP))
+            time.sleep(0.2)
+        # Close start menu
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.B))
+        time.sleep(0.2)
 
     def equip_bike():
         slot.abort_if_frozen()
@@ -105,23 +142,29 @@ def attempt(slot: InstanceSlot):
                 return text[len(prefix):-len(suffix)]
         return ""
 
+    def is_player_pkmn_poisoned():
+        slot.abort_if_frozen()
+        text = read_text(TEMP_DIR / f"{idx}.png", PLAYER_PKMN_STATUS_BOX).upper()
+        return text.startswith("PS")
+
     def is_shiny_of_species(pokemon_name: str):
         slot.abort_if_frozen()
+        is_shiny = False
         if pokemon_name == "KAKUNA":
             pokemon_hex = capture_pixel(BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[0], BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[1])
-            is_shiny = pokemon_hex != NON_SHINY_KAKUNA_HEX
+            # is_shiny = pokemon_hex != NON_SHINY_KAKUNA_HEX
         elif pokemon_name == "WEEDLE":
             pokemon_hex = capture_pixel(BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[0], BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[1])
-            is_shiny = pokemon_hex != NON_SHINY_WEEDLE_HEX
+            # is_shiny = pokemon_hex != NON_SHINY_WEEDLE_HEX
         elif pokemon_name == "CATERPIE":
             pokemon_hex = capture_pixel(BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[0], BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[1])
-            is_shiny = pokemon_hex != NON_SHINY_CATERPIE_HEX
+            # is_shiny = pokemon_hex != NON_SHINY_CATERPIE_HEX
         elif pokemon_name == "PIKACHU":
             pokemon_hex = capture_pixel(BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[0], BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[1])
             is_shiny = pokemon_hex != NON_SHINY_PIKACHU_HEX
         elif pokemon_name == "METAPOD":
             pokemon_hex = capture_pixel(BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[0], BATTLE_SCREEN_WILD_POKEMON_CROSSHAIR[1])
-            is_shiny = pokemon_hex != NON_SHINY_METAPOD_HEX
+            # is_shiny = pokemon_hex != NON_SHINY_METAPOD_HEX
         else:
             raise ValueError(f"Invalid pokemon name: {pokemon_name}")
         return is_shiny
@@ -163,8 +206,6 @@ def attempt(slot: InstanceSlot):
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.RIGHT))
         time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(0.7)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
@@ -195,93 +236,46 @@ def attempt(slot: InstanceSlot):
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
         time.sleep(2.7)
 
-    def pick_up_egg():
+    def attempt_pokemon_heal():
+        # needed to move back from ultra ball
+        # 4 A to use full heal
         slot.abort_if_frozen()
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-
-    def hatch_egg():
-        slot.abort_if_frozen()
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.3)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.SELECT))
-        time.sleep(0.7)
-        for _ in range(250):
-            slot.abort_if_frozen()
-            o.client.execute_event(KeyEvent(KeyEventType.HOLD, KeyType.LEFT))
-            time.sleep(0.5)
-            o.client.execute_event(KeyEvent(KeyEventType.RELEASE, KeyType.LEFT))
-            o.client.execute_event(KeyEvent(KeyEventType.HOLD, KeyType.RIGHT))
-            time.sleep(0.5)
-            o.client.execute_event(KeyEvent(KeyEventType.RELEASE, KeyType.RIGHT))
-
-    def go_through_hatching_sequences():
-        slot.abort_if_frozen()
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(2)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(2)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(2)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(2)
-
-    def enter_summary():
-        slot.abort_if_frozen()
+        # Open START menu and move to and open BAG
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.START))
-        time.sleep(0.7)
+        time.sleep(0.2)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
+        time.sleep(0.2)
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
+        time.sleep(0.2)
         o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.RIGHT))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-
-    def save_screenshot():
-        slot.abort_if_frozen()
-        o.client.save_screenshot_to_file(f"{idx}.png")
-        time.sleep(1)
+        time.sleep(0.2)
+        # Move back to ITEMS
+        for _ in range(2):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.LEFT))
+            time.sleep(0.2)
+        # Use FULL HEAL
+        for _ in range(4):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
+            time.sleep(0.5)
 
     def save_game():
         slot.abort_if_frozen()
         print(f"Saving game on {idx}")
         time.sleep(2)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.START))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(0.7)
-        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
-        time.sleep(3)
+        # Move back to START menu from BAG
+        o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.B))
+        time.sleep(0.2)
+        # Move to SAVE
+        for _ in range(2):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.DOWN))
+            time.sleep(0.7)
+        # Save Game
+        for _ in range(3):
+            o.client.execute_event(KeyEvent(KeyEventType.PUSH, KeyType.A))
+            time.sleep(1)
 
     start_game()
+    set_initial_menu_cursor_position()
     equip_bike()
     while not stop_all:
         brief_zigzag()
@@ -290,8 +284,10 @@ def attempt(slot: InstanceSlot):
                 time.sleep(0.4)
             pokemon_name = get_wild_pokemon_name()
             runs += 1
+            if pokemon_name == "PIKACHU":
+                pikachu_runs += 1
             if runs % 50 == 0:
-                print(f"Runs: {runs}")
+                print(f"Runs: {runs}, Pikachu Runs: {pikachu_runs}")
             proceed_through_battle_intro_messages()
             if is_shiny_of_species(pokemon_name):
                 print(f"Shiny {pokemon_name} found on {idx} after {runs} runs")
@@ -301,6 +297,7 @@ def attempt(slot: InstanceSlot):
                 while not is_caught():
                     throw_additional_ultra_ball()
                 finish_battle_messages()
+                attempt_pokemon_heal()
                 save_game()
                 play_success(blocking=True)
                 group.stop.set()
