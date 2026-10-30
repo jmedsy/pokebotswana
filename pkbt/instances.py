@@ -161,6 +161,29 @@ class InstanceGroup:
                 )
             )
 
+    def kill(self) -> None:
+        """Close every emulator this group started. The Scripting window is the same process."""
+        self.stop.set()
+        with self.replace_lock:
+            for slot in self.slots:
+                slot.restart.clear()
+                try:
+                    slot.orch.client.disconnect()
+                except Exception:
+                    pass
+                process = getattr(slot.orch.emu, "process", None)
+                if process is None or process.poll() is not None:
+                    continue
+                print(f"[{slot.idx}] Closing emulator on port {slot.orch.client.port}")
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+                try:
+                    process.wait(timeout=5)
+                except Exception:
+                    pass
+
     def start(self, ready_pause: float = 0, fast_forward: bool = False) -> None:
         """Launch every emulator, tile the windows, and hide the Scripting consoles."""
         print(f"Creating {len(self.slots)} orchestrators...", end="")
