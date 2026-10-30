@@ -1,5 +1,3 @@
-# Remove filter in wild_pokemon_is_shiny() to allow other shinies through
-
 from pkbt.config import POKEMON_RED_ROM
 from pkbt.input.key_event import KeyEventType
 from pkbt.input.key_type import KeyType
