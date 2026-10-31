@@ -9,6 +9,7 @@ from pkbt.text import FULL_DIALOGUE_BOX, PLAYER_PKMN_STATUS_BOX, read_text
 from pkbt.audio import play_success
 from pkbt.instances import InstanceGroup, InstanceSlot
 from pkbt.species import SPECIES
+from pkbt.console import for_console
 import time
 import threading
 import random
@@ -38,10 +39,6 @@ encounter_counts = {
 }
 runs_lock = threading.Lock()
 stop_all = False
-
-def for_console(value) -> str:
-    """The Windows console encoding cannot print the male or female sign."""
-    return str(value).replace("♂", "-M").replace("♀", "-F")
 
 def attempt(slot: InstanceSlot):
     o = slot.orch
