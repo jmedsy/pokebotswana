@@ -12,6 +12,12 @@ class Species:
     summary: SpriteCheck | None = None
 
 SPECIES = {
+    "ABRA": Species(
+        wild=SpriteCheck(
+            crosshair=(178, 39),
+            normal_hex="#ffef29"
+        )
+    ),
     "CATERPIE": Species(
         wild=SpriteCheck(
             crosshair=(174, 56),
@@ -22,6 +28,12 @@ SPECIES = {
         wild=SpriteCheck(
             crosshair=(183, 44),
             normal_hex="#ad6331"
+        )
+    ),
+    "EKANS": Species(
+        wild=SpriteCheck(
+            crosshair=(170, 46),
+            normal_hex="#bd73a5"
         )
     ),
     "GEODUDE": Species(
@@ -66,6 +78,12 @@ SPECIES = {
             normal_hex="#63426b"
         )
     ),
+    "ODDISH": Species(
+        wild=SpriteCheck(
+            crosshair=(179, 60),
+            normal_hex="#4a6b84"
+        )
+    ),
     "PARAS": Species(
         wild=SpriteCheck(
             crosshair=(168, 46),
@@ -98,8 +116,8 @@ SPECIES = {
     ),
     "SUICUNE": Species(
         wild=SpriteCheck(
-            crosshair=(174, 53),
-            normal_hex="#5a73d6"
+            crosshair=(164, 25),
+            normal_hex="#8c31e7"
         )
     ),
     "WEEDLE": Species(
